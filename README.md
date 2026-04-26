@@ -1,0 +1,197 @@
+# Quality Gate Agent
+
+Quality Gate Agent is a lightweight QA engineering prototype that maps code/API changes to risk-based regression scope and PR-ready quality gate comments.
+
+It demonstrates how a QA / Test Development Engineer can shift testing left by turning change context into:
+
+- risk score
+- impacted areas
+- regression scope
+- PR comment report
+- eval-based quality checks
+
+## Why I Built This
+
+In fast-moving product teams, QA engineers often receive late-stage changes with limited context. A small code or API change may affect payment reliability, state consistency, idempotency, asynchronous callbacks, reconciliation, user-facing status, or regression scope.
+
+This project explores a practical quality gate workflow:
+
+1. Read a git diff, API change note, or OpenAPI change summary.
+2. Match changes against structured quality risk rules.
+3. Calculate explainable risk score.
+4. Generate impacted areas and regression suggestions.
+5. Produce a Markdown quality gate report.
+6. Produce a PR comment that can be used in CI / code review workflows.
+7. Evaluate the agent output against expected risk cases.
+
+This repository contains only generalized and sanitized examples. It does not include company-specific business logic, internal APIs, production data, or confidential implementation details.
+
+---
+
+## What Makes v0.2 Better Than a Simple Demo
+
+This version includes:
+
+- **Risk scoring model** instead of only `high / medium / low` keyword tags
+- **PR comment format output** for real code review workflows
+- **Eval cases** to check whether the agent detects expected risk areas
+- **OpenAPI change example** to simulate API contract risk
+- **GitHub Actions** for report generation and tests
+- **Sanitized fintech-style examples** without exposing internal business details
+
+---
+
+## Demo Flow
+
+```text
+Git Diff / API Change / OpenAPI Change Summary
+        |
+        v
+Quality Gate Rules
+        |
+        v
+Risk Analyzer
+        |
+        +--> Risk Score
+        +--> Impacted Areas
+        +--> Regression Scope
+        +--> Quality Gate Report
+        +--> PR Comment
+        +--> Eval Checks
+```
+
+---
+
+## Project Structure
+
+```text
+quality-gate-agent-v0.2/
+├── examples/
+│   ├── diffs/
+│   │   └── payment_status_change.diff
+│   ├── api_changes/
+│   │   └── payment_api_change.md
+│   └── openapi/
+│       ├── old_payment_api.yaml
+│       ├── new_payment_api.yaml
+│       └── openapi_change_summary.md
+├── risk_rules/
+│   └── quality_gate_rules.yaml
+├── eval_cases/
+│   ├── high_risk_async_callback.yaml
+│   ├── medium_risk_status_change.yaml
+│   └── low_risk_copy_change.yaml
+├── src/
+│   ├── main.py
+│   ├── change_loader.py
+│   ├── gate_analyzer.py
+│   ├── risk_scoring.py
+│   ├── report_generator.py
+│   ├── pr_comment_generator.py
+│   └── eval_runner.py
+├── tests/
+│   ├── test_gate_analyzer.py
+│   ├── test_risk_scoring.py
+│   └── test_eval_cases.py
+├── outputs/
+│   ├── quality_gate_report.md
+│   ├── pr_comment.md
+│   └── eval_summary.md
+├── docs/
+│   ├── architecture.md
+│   ├── risk_model.md
+│   └── roadmap.md
+└── .github/workflows/
+    └── test.yml
+```
+
+---
+
+## Quick Start
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Generate reports:
+
+```bash
+python -m src.main
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+Run eval cases manually:
+
+```bash
+python -m src.eval_runner
+```
+
+---
+
+## Example Output
+
+### Quality Gate Result
+
+```text
+Overall Risk Level: HIGH
+Risk Score: 13 / 15
+```
+
+### Impacted Areas
+
+```text
+- idempotency
+- balance consistency
+- external provider callback
+- transaction status consistency
+- reconciliation
+```
+
+### Suggested Regression Scope
+
+```text
+- Submit duplicated request with same request ID.
+- Simulate provider timeout.
+- Simulate delayed success callback.
+- Verify balance is deducted only once.
+- Verify frontend/backend status display.
+```
+
+---
+
+## Example PR Comment
+
+```markdown
+## Quality Gate Result: HIGH RISK
+
+Risk Score: 13 / 15
+
+This change may impact:
+- idempotency
+- external provider callback
+- transaction status consistency
+
+Recommended before merge:
+- run duplicate request regression
+- verify delayed callback handling
+- check frontend/backend status consistency
+```
+
+---
+
+## Tech Stack
+
+Python · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
+
+---
+
+## Current Status
+
+v0.2 prototype. Current implementation uses structured rules and explainable scoring. Future versions can integrate LLM-based change summarization, OpenAPI diff automation, GitHub PR comments, and CI merge gates.

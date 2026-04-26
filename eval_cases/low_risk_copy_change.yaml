@@ -1,0 +1,7 @@
+name: low_risk_copy_change
+input: |
+  Update help text and wording on the payment confirmation page.
+  No API, status, callback, balance, or transaction logic changed.
+expected_risk_level: low
+expected_min_score: 0
+expected_impacted_areas: []

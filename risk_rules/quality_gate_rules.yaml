@@ -1,0 +1,135 @@
+rules:
+  - id: idempotency_risk
+    name: Idempotency Risk
+    keywords:
+      - retry
+      - duplicate
+      - request_id
+      - transaction_id
+      - balance
+      - deduct
+    risk_level: high
+    dimensions:
+      business_impact: 3
+      data_consistency: 3
+      user_visibility: 2
+      reversibility: 2
+      external_dependency: 1
+    impacted_areas:
+      - idempotency
+      - balance consistency
+      - transaction record uniqueness
+    suggested_regression:
+      - Submit duplicated request with same request ID.
+      - Submit duplicated request with same transaction ID.
+      - Verify balance is deducted only once.
+      - Verify only one transaction record is created.
+
+  - id: async_callback_risk
+    name: Async Callback Risk
+    keywords:
+      - timeout
+      - callback
+      - delayed
+      - provider
+      - pending_confirmation
+      - waiting_callback
+      - callback_required
+    risk_level: high
+    dimensions:
+      business_impact: 3
+      data_consistency: 3
+      user_visibility: 2
+      reversibility: 2
+      external_dependency: 3
+    impacted_areas:
+      - external provider callback
+      - transaction final state
+      - timeout handling
+      - reconciliation
+    suggested_regression:
+      - Simulate provider timeout.
+      - Simulate delayed success callback.
+      - Simulate duplicated callback.
+      - Verify final transaction state cannot be overwritten incorrectly.
+
+  - id: status_consistency_risk
+    name: Status Consistency Risk
+    keywords:
+      - status
+      - frontend
+      - backend
+      - display
+      - pending
+      - completed
+      - enum
+    risk_level: medium
+    dimensions:
+      business_impact: 2
+      data_consistency: 2
+      user_visibility: 3
+      reversibility: 2
+      external_dependency: 1
+    impacted_areas:
+      - frontend/backend consistency
+      - user-facing status display
+      - state machine
+      - client compatibility
+    suggested_regression:
+      - Verify frontend display for each backend status.
+      - Verify pending status transition.
+      - Verify failed status transition.
+      - Verify completed status transition.
+      - Verify clients can handle newly added status values.
+
+  - id: contract_compatibility_risk
+    name: API Contract Compatibility Risk
+    keywords:
+      - required
+      - openapi
+      - contract
+      - schema
+      - enum
+      - response field
+      - provider_request_id
+    risk_level: medium
+    dimensions:
+      business_impact: 2
+      data_consistency: 2
+      user_visibility: 2
+      reversibility: 2
+      external_dependency: 2
+    impacted_areas:
+      - API contract compatibility
+      - consumer integration
+      - backward compatibility
+    suggested_regression:
+      - Verify existing clients can parse the new response schema.
+      - Verify missing required field behavior.
+      - Verify enum compatibility with older clients.
+      - Run API contract tests.
+
+  - id: reconciliation_risk
+    name: Reconciliation Risk
+    keywords:
+      - reconciliation
+      - mismatch
+      - confirmation
+      - transaction
+      - provider_response
+      - provider request
+    risk_level: medium
+    dimensions:
+      business_impact: 3
+      data_consistency: 3
+      user_visibility: 1
+      reversibility: 2
+      external_dependency: 2
+    impacted_areas:
+      - reconciliation
+      - provider confirmation
+      - transaction consistency
+    suggested_regression:
+      - Verify request/confirmation mismatch detection.
+      - Verify missing provider confirmation handling.
+      - Verify reconciliation report for long-pending transactions.

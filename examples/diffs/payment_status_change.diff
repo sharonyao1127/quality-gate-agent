@@ -1,0 +1,19 @@
+diff --git a/payment_service.py b/payment_service.py
+index 1234567..89abcde 100644
+--- a/payment_service.py
++++ b/payment_service.py
+@@ -10,7 +10,18 @@ def process_payment(request):
+-    status = "processing"
++    status = "pending_confirmation"
+
++    if request.retry_count > 0:
++        logger.info("retry payment request")
++
++    provider_response = external_provider.send(request)
++    if provider_response.timeout:
++        return {"status": "pending_confirmation"}
++
++    if provider_response.callback_required:
++        return {"status": "waiting_callback"}
+
+     return {"status": status}

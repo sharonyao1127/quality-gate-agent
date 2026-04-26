@@ -1,0 +1,10 @@
+name: high_risk_async_callback
+input: |
+  Payment request may timeout. External provider can send a delayed callback.
+  The system returns pending_confirmation and waits for callback_required.
+expected_risk_level: high
+expected_min_score: 10
+expected_impacted_areas:
+  - external provider callback
+  - transaction final state
+  - reconciliation

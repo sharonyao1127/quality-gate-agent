@@ -1,0 +1,26 @@
+openapi: 3.0.0
+info:
+  title: Generic Payment API
+  version: 1.1.0
+paths:
+  /payments/process:
+    post:
+      summary: Process payment
+      responses:
+        "200":
+          description: Payment accepted or processed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - provider_request_id
+                properties:
+                  status:
+                    type: string
+                    enum: [processing, pending_confirmation, waiting_callback, completed, failed]
+                  provider_request_id:
+                    type: string
+                  callback_required:
+                    type: boolean
