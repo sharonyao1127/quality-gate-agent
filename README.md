@@ -195,3 +195,46 @@ Python · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automatio
 ## Current Status
 
 v0.2 prototype. Current implementation uses structured rules and explainable scoring. Future versions can integrate LLM-based change summarization, OpenAPI diff automation, GitHub PR comments, and CI merge gates.
+
+## Demo Output
+
+After running:
+
+```bash
+python3 -m src.main
+python3 -m src.eval_runner
+pytest -q
+```
+
+The agent generates:
+
+- `outputs/quality_gate_report.md`
+- `outputs/pr_comment.md`
+- `outputs/eval_summary.md`
+
+Example result:
+
+```text
+Overall Risk Level: HIGH
+Overall Risk Score: 13 / 15
+Passed Eval Cases: 3 / 3
+```
+
+## Key Capabilities
+
+- Reads git diff, API change notes, and OpenAPI change summaries.
+- Matches changes against structured quality risk rules.
+- Calculates explainable risk scores.
+- Generates impacted areas and suggested regression scope.
+- Produces PR-ready quality gate comments.
+- Uses eval cases to validate whether the gate produces expected risk levels.
+
+## Interview Talking Points
+
+I built this project to explore how QA can shift left in fast-moving engineering teams.
+
+Instead of manually deciding regression scope at the end of development, this prototype reads change context such as git diffs, API changes, and OpenAPI summaries, then maps them to structured risk rules.
+
+The v0.2 version includes an explainable risk scoring model, PR comment output, and eval cases. The eval layer helped expose false positives in low-risk changes, which shows that quality gates should be evaluated, not just generated.
+
+This project demonstrates my interest in QA automation, risk-based testing, CI quality gates, and AI-era quality engineering workflows.
