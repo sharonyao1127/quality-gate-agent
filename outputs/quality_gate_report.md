@@ -10,7 +10,7 @@
 |---|---|---:|---|
 | Idempotency Risk | high | 11 | retry, duplicate, request_id, balance, deduct |
 | Async Callback Risk | high | 13 | timeout, callback, delayed, provider, pending_confirmation, waiting_callback, callback_required |
-| Status Consistency Risk | high | 10 | status, frontend, backend, display, pending, enum |
+| Status Consistency Risk | medium | 8 | status, frontend, backend, display, pending, enum |
 | API Contract Compatibility Risk | high | 10 | required, openapi, contract, enum, response field, provider_request_id |
 | Reconciliation Risk | high | 11 | reconciliation, confirmation, transaction, provider_response, provider request |
 
@@ -32,8 +32,8 @@
 
 ### Status Consistency Risk
 - business_impact: 2
-- data_consistency: 2
-- user_visibility: 3
+- data_consistency: 1
+- user_visibility: 2
 - reversibility: 2
 - external_dependency: 1
 

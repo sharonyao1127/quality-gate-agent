@@ -66,8 +66,8 @@ rules:
     risk_level: medium
     dimensions:
       business_impact: 2
-      data_consistency: 2
-      user_visibility: 3
+      data_consistency: 1
+      user_visibility: 2
       reversibility: 2
       external_dependency: 1
     impacted_areas:

@@ -6,7 +6,7 @@
 
 - **Idempotency Risk**: matched `retry, duplicate, request_id, balance, deduct`; score 11/15
 - **Async Callback Risk**: matched `timeout, callback, delayed, provider, pending_confirmation, waiting_callback, callback_required`; score 13/15
-- **Status Consistency Risk**: matched `status, frontend, backend, display, pending, enum`; score 10/15
+- **Status Consistency Risk**: matched `status, frontend, backend, display, pending, enum`; score 8/15
 - **API Contract Compatibility Risk**: matched `required, openapi, contract, enum, response field, provider_request_id`; score 10/15
 - **Reconciliation Risk**: matched `reconciliation, confirmation, transaction, provider_response, provider request`; score 11/15
 

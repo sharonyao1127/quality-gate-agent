@@ -1,7 +1,8 @@
 name: low_risk_copy_change
 input: |
-  Update help text and wording on the payment confirmation page.
-  No API, status, callback, balance, or transaction logic changed.
+  Update help text and wording on the guide page.
+  This is a copywriting-only change for user guidance.
+  No business behavior is changed.
 expected_risk_level: low
 expected_min_score: 0
 expected_impacted_areas: []

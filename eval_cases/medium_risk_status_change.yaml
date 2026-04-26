@@ -1,7 +1,7 @@
 name: medium_risk_status_change
 input: |
-  Backend payment status enum added a new pending value.
-  Frontend display logic should handle the new status.
+  Backend status display logic added a new pending value.
+  Frontend display logic should handle the new user-facing state.
 expected_risk_level: medium
 expected_min_score: 5
 expected_impacted_areas:
