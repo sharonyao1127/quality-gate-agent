@@ -38,11 +38,26 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]]) -> GateAnalysi
     for rule in rules:
         keywords = rule.get("keywords", [])
         matched = [kw for kw in keywords if kw.lower() in text_lower]
+        negative_keywords = rule.get("negative_keywords", [])
+        matched_negative = [kw for kw in negative_keywords if kw.lower() in text_lower]
 
         if matched:
+            negative_match_action = rule.get("negative_match_action", "downgrade")
+
+            if matched_negative and negative_match_action == "skip":
+                continue
+
             dimensions = rule.get("dimensions", {})
             risk_score = score_dimensions(dimensions)
             risk_level = calculate_level_from_score(risk_score)
+
+            if matched_negative and negative_match_action == "downgrade":
+                if risk_level == "high":
+                    risk_level = "medium"
+                    risk_score = min(risk_score, 9)
+                elif risk_level == "medium":
+                    risk_level = "low"
+                    risk_score = min(risk_score, 4)
 
             matches.append(
                 GateMatch(
