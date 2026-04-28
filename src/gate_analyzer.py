@@ -60,6 +60,7 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]]) -> GateAnalysi
                 risk_score = downgrade_risk_once(risk_score)
                 risk_level = calculate_level_from_score(risk_score)
 
+
             matches.append(
                 GateMatch(
                     id=rule["id"],
