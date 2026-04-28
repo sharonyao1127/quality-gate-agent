@@ -2,7 +2,12 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 import yaml
 
-from src.risk_scoring import calculate_level_from_score, merge_risk_scores, score_dimensions
+from src.risk_scoring import (
+    calculate_level_from_score,
+    downgrade_risk_once,
+    merge_risk_scores,
+    score_dimensions,
+)
 
 
 @dataclass
@@ -52,12 +57,9 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]]) -> GateAnalysi
             risk_level = calculate_level_from_score(risk_score)
 
             if matched_negative and negative_match_action == "downgrade":
-                if risk_level == "high":
-                    risk_level = "medium"
-                    risk_score = min(risk_score, 9)
-                elif risk_level == "medium":
-                    risk_level = "low"
-                    risk_score = min(risk_score, 4)
+                risk_score = downgrade_risk_once(risk_score)
+                risk_level = calculate_level_from_score(risk_score)
+
 
             matches.append(
                 GateMatch(
