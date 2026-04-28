@@ -1,16 +1,10 @@
+
 # Quality Gate Agent
 
-Quality Gate Agent is a change-aware QA engineering prototype that maps git diffs, API changes, and OpenAPI change summaries to explainable risk scores, impacted areas, regression scope, and PR-ready quality gate comments.
+Quality Gate Agent is an AI-assisted engineering tooling prototype that maps git diffs, API changes, and OpenAPI change summaries to explainable risk scores, impacted areas, regression scope, eval results, and PR-ready review comments.
 
-It explores how QA can shift left from late-stage regression execution to earlier change risk assessment in CI / code review workflows.
+It explores how engineering teams can understand change impact earlier in CI / code review workflows, instead of waiting until late-stage regression planning.
 
-It demonstrates how a QA / Test Development Engineer can shift testing left by turning change context into:
-
-- risk score
-- impacted areas
-- regression scope
-- PR comment report
-- eval-based quality checks
 
 ## Why I Built This
 
