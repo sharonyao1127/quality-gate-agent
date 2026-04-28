@@ -35,3 +35,18 @@ def merge_risk_scores(scores: Iterable[int]) -> int:
     """
     scores = list(scores)
     return max(scores) if scores else 0
+
+
+def downgrade_risk_once(score: int) -> int:
+    """Downgrade risk score by one level while keeping threshold semantics.
+
+    high (>=10) -> medium cap (9)
+    medium (5-9) -> low cap (4)
+    low (0-4) -> unchanged
+    """
+    level = calculate_level_from_score(score)
+    if level == "high":
+        return min(score, RISK_THRESHOLDS["high"] - 1)
+    if level == "medium":
+        return min(score, RISK_THRESHOLDS["medium"] - 1)
+    return score

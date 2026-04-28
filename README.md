@@ -190,7 +190,27 @@ Recommended before merge:
 
 ## Tech Stack
 
-Python · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
+Python · FastAPI · HTML · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
+
+## Web UI (New)
+
+Start local UI:
+
+```bash
+uvicorn src.web_app:app --reload
+```
+
+Then open `http://127.0.0.1:8000` and:
+
+1. Input API change summary
+2. Click Analyze
+3. Get Risk Score / Impacted Areas / PR Comment
+
+This helps position the project as:
+
+- AI-powered engineering tools
+- Lightweight full-stack internal tools
+- Developer productivity workflows
 
 ---
 
