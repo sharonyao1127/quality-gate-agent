@@ -1,6 +1,7 @@
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
+httpx = pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 
 from src.web_app import app
