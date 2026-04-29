@@ -34,6 +34,9 @@ This version includes:
 - **OpenAPI change example** to simulate API contract risk
 - **GitHub Actions** for report generation and tests
 - **Sanitized fintech-style examples** without exposing internal business details
+- **AI-generated PR review eval** to detect missing critical risks
+- **Structured regression pack output** (`outputs/regression_pack.yaml`)
+- **CI gate mode** (`--gate-mode strict`) to fail builds on high-risk changes
 
 ---
 
@@ -115,6 +118,18 @@ Generate reports:
 
 ```bash
 python -m src.main
+```
+
+Run in strict CI gate mode:
+
+```bash
+python -m src.main --gate-mode strict
+```
+
+If overall risk score is `>= 10`, the process exits non-zero with:
+
+```text
+Quality gate failed: high-risk change requires manual review.
 ```
 
 Run tests:

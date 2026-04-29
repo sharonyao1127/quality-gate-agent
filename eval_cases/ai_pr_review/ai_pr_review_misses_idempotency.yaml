@@ -1,0 +1,15 @@
+name: ai_pr_review_misses_idempotency
+
+change_summary: |
+  The transaction API now supports retry when provider timeout occurs.
+  Duplicate requests should not deduct balance multiple times.
+
+ai_generated_review: |
+  This change mainly affects status display. Basic UI regression should be enough.
+
+expected_risks:
+  - idempotency
+  - async callback
+  - balance consistency
+
+expected_result: fail
