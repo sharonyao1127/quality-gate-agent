@@ -152,11 +152,12 @@ def main() -> None:
     AI_PR_REVIEW_OUTPUT_PATH.write_text(ai_summary, encoding="utf-8")
 
     failed = [result for result in results if not result.passed]
+    failed_ai = [result for result in ai_results if not result.passed]
     print(summary)
     if ai_results:
         print()
         print(ai_summary)
-    if failed:
+    if failed or failed_ai:
         raise SystemExit(1)
 
 

@@ -39,6 +39,7 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]]) -> GateAnalysi
     """Analyze change text based on structured quality gate rules."""
     text_lower = change_text.lower()
     matches: List[GateMatch] = []
+    valid_negative_actions = {"downgrade", "skip"}
 
     for rule in rules:
         keywords = rule.get("keywords", [])
@@ -48,18 +49,26 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]]) -> GateAnalysi
 
         if matched:
             negative_match_action = rule.get("negative_match_action", "downgrade")
+            if negative_match_action not in valid_negative_actions:
+                negative_match_action = "downgrade"
 
-            if matched_negative and negative_match_action == "skip":
+            negative_match_min_hits = int(rule.get("negative_match_min_hits", len(negative_keywords)))
+            strong_negative_evidence = (
+                bool(negative_keywords)
+                and negative_match_min_hits > 0
+                and len(matched_negative) >= negative_match_min_hits
+            )
+
+            if strong_negative_evidence and negative_match_action == "skip":
                 continue
 
             dimensions = rule.get("dimensions", {})
             risk_score = score_dimensions(dimensions)
             risk_level = calculate_level_from_score(risk_score)
 
-            if matched_negative and negative_match_action == "downgrade":
+            if strong_negative_evidence and negative_match_action == "downgrade":
                 risk_score = downgrade_risk_once(risk_score)
                 risk_level = calculate_level_from_score(risk_score)
-
 
             matches.append(
                 GateMatch(
