@@ -1,10 +1,14 @@
+import argparse
 from pathlib import Path
+import yaml
 
 from src.change_loader import load_change_text
 from src.gate_analyzer import analyze_change, load_gate_rules
 from src.report_generator import generate_gate_report
 from src.pr_comment_generator import generate_pr_comment
 from src.eval_runner import run_eval_cases, generate_eval_summary
+from src.eval_runner import run_ai_pr_review_eval_cases, generate_ai_pr_review_eval_summary
+from src.regression_pack_generator import generate_regression_pack
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +22,10 @@ OUTPUT_DIR = ROOT / "outputs"
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Quality Gate Agent")
+    parser.add_argument("--gate-mode", choices=["report", "strict"], default="report")
+    args = parser.parse_args()
+
     change_text = load_change_text(CHANGE_PATHS)
     rules = load_gate_rules(str(RULES_PATH))
     result = analyze_change(change_text, rules)
@@ -27,10 +35,14 @@ def main() -> None:
     report = generate_gate_report(result)
     pr_comment = generate_pr_comment(result)
     eval_summary = generate_eval_summary(run_eval_cases())
+    ai_eval_summary = generate_ai_pr_review_eval_summary(run_ai_pr_review_eval_cases())
+    regression_pack = generate_regression_pack(result)
 
     (OUTPUT_DIR / "quality_gate_report.md").write_text(report, encoding="utf-8")
     (OUTPUT_DIR / "pr_comment.md").write_text(pr_comment, encoding="utf-8")
     (OUTPUT_DIR / "eval_summary.md").write_text(eval_summary, encoding="utf-8")
+    (OUTPUT_DIR / "ai_pr_review_eval_summary.md").write_text(ai_eval_summary, encoding="utf-8")
+    (OUTPUT_DIR / "regression_pack.yaml").write_text(yaml.safe_dump(regression_pack, sort_keys=False), encoding="utf-8")
 
     print(
         f"Generated quality gate report with {len(result.matches)} matched risk rules. "
@@ -39,6 +51,11 @@ def main() -> None:
     print(f"- {OUTPUT_DIR / 'quality_gate_report.md'}")
     print(f"- {OUTPUT_DIR / 'pr_comment.md'}")
     print(f"- {OUTPUT_DIR / 'eval_summary.md'}")
+    print(f"- {OUTPUT_DIR / 'ai_pr_review_eval_summary.md'}")
+    print(f"- {OUTPUT_DIR / 'regression_pack.yaml'}")
+
+    if args.gate_mode == "strict" and result.overall_risk_score >= 10:
+        raise SystemExit("Quality gate failed: high-risk change requires manual review.")
 
 
 if __name__ == "__main__":
