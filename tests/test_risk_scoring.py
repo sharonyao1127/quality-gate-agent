@@ -1,4 +1,9 @@
-from src.risk_scoring import calculate_level_from_score, merge_risk_scores, score_dimensions
+from src.risk_scoring import (
+    calculate_level_from_score,
+    downgrade_risk_once,
+    merge_risk_scores,
+    score_dimensions,
+)
 
 
 def test_score_dimensions():
@@ -22,3 +27,9 @@ def test_calculate_level_from_score():
 def test_merge_risk_scores_uses_max_score():
     assert merge_risk_scores([3, 8, 13]) == 13
     assert merge_risk_scores([]) == 0
+
+
+def test_downgrade_risk_once():
+    assert downgrade_risk_once(13) == 9
+    assert downgrade_risk_once(9) == 4
+    assert downgrade_risk_once(4) == 4

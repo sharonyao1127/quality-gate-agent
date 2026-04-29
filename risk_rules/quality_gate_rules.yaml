@@ -8,6 +8,11 @@ rules:
       - transaction_id
       - balance
       - deduct
+    negative_keywords:
+      - copywriting-only
+      - help text
+      - no business behavior changed
+    negative_match_action: downgrade
     risk_level: high
     dimensions:
       business_impact: 3
@@ -35,6 +40,11 @@ rules:
       - pending_confirmation
       - waiting_callback
       - callback_required
+    negative_keywords:
+      - copywriting-only
+      - help text
+      - no business behavior changed
+    negative_match_action: downgrade
     risk_level: high
     dimensions:
       business_impact: 3

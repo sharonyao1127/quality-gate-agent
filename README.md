@@ -40,6 +40,9 @@ This version includes:
 - **OpenAPI change example** to simulate API contract risk
 - **GitHub Actions** for report generation and tests
 - **Sanitized fintech-style examples** without exposing internal business details
+- **AI-generated PR review eval** to detect missing critical risks
+- **Structured regression pack output** (`outputs/regression_pack.yaml`)
+- **CI gate mode** (`--gate-mode strict`) to fail builds on high-risk changes
 
 ---
 
@@ -123,6 +126,18 @@ Generate reports:
 python -m src.main
 ```
 
+Run in strict CI gate mode:
+
+```bash
+python -m src.main --gate-mode strict
+```
+
+If overall risk score is `>= 10`, the process exits non-zero with:
+
+```text
+Quality gate failed: high-risk change requires manual review.
+```
+
 Run tests:
 
 ```bash
@@ -190,7 +205,27 @@ Recommended before merge:
 
 ## Tech Stack
 
-Python · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
+Python · FastAPI · HTML · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
+
+## Web UI (New)
+
+Start local UI:
+
+```bash
+uvicorn src.web_app:app --reload
+```
+
+Then open `http://127.0.0.1:8000` and:
+
+1. Input API change summary
+2. Click Analyze
+3. Get Risk Score / Impacted Areas / PR Comment
+
+This helps position the project as:
+
+- AI-powered engineering tools
+- Lightweight full-stack internal tools
+- Developer productivity workflows
 
 ---
 
