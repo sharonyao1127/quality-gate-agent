@@ -1,110 +1,82 @@
-
 # Quality Gate Agent
 
-Quality Gate Agent is an AI-assisted engineering tooling prototype that maps git diffs, API changes, and OpenAPI change summaries to explainable risk scores, impacted areas, regression scope, eval results, and PR-ready review comments.
+AI-assisted quality gate for risky code, API, and OpenAPI changes.
 
-It explores how engineering teams can understand change impact earlier in CI / code review workflows, instead of waiting until late-stage regression planning.
+This project turns change context into explainable risk scores, regression recommendations, traceable evidence, and PR-ready review comments. It is designed for complex B2B systems where a small change can affect payment reliability, ledger consistency, async callbacks, status flows, reconciliation, or customer-facing behavior.
 
+This repository is a public reference implementation. Production-grade rule packs, domain adapters, customer workflows, and private evaluation sets are delivered separately in private engagements.
 
-## Why I Built This
+## What It Solves
 
-In fast-moving product teams, QA engineers often receive late-stage changes with limited context. A small code or API change may affect payment reliability, state consistency, idempotency, asynchronous callbacks, reconciliation, user-facing status, or regression scope.
+Engineering teams often review risky changes with limited context. A diff may mention a new field, callback, retry, status, or API contract change, but the release risk is still judged manually.
 
-This project explores a practical quality gate workflow:
+Quality Gate Agent provides a lightweight workflow:
 
-1. Read a git diff, API change note, or OpenAPI change summary.
-2. Match changes against structured quality risk rules.
-3. Calculate explainable risk score.
-4. Generate impacted areas and regression suggestions.
-5. Produce a Markdown quality gate report.
-6. Produce a PR comment that can be used in CI / code review workflows.
-7. Evaluate the agent output against expected risk cases.
+1. Load a git diff, API change note, or OpenAPI change summary.
+2. Match the change against structured risk rules.
+3. Calculate an explainable risk score.
+4. Generate impacted areas and regression scope.
+5. Export a Markdown report and PR comment.
+6. Validate output shape and semantic constraints.
+7. Preserve traceability for rule matches and scoring decisions.
 
-This repository contains only generalized and sanitized examples. It does not include company-specific business logic, internal APIs, production data, or confidential implementation details.
+## Best-Fit Use Cases
 
----
+- Payment and ledger changes: idempotency, double deduction, refund consistency, reconciliation.
+- Logistics and supply-chain workflows: status transitions, callback delays, inventory or route consistency.
+- Ad platforms and retrieval systems: ranking/retrieval changes, contract drift, traffic-sensitive rollouts.
+- Healthcare and EdTech SaaS: workflow stability, API compatibility, release risk review.
+- Internal engineering tools: PR quality gates, regression recommendation, release readiness checks.
 
-## What Makes v0.2 Better Than a Simple Demo
+## Current Capabilities
 
-This version includes:
-
-- **Risk scoring model** instead of only `high / medium / low` keyword tags
-- **PR comment format output** for real code review workflows
-- **Eval cases** to check whether the agent detects expected risk areas
-- **OpenAPI change example** to simulate API contract risk
-- **GitHub Actions** for report generation and tests
-- **Sanitized fintech-style examples** without exposing internal business details
-- **AI-generated PR review eval** to detect missing critical risks
-- **Structured regression pack output** (`outputs/regression_pack.yaml`)
-- **CI gate mode** (`--gate-mode strict`) to fail builds on high-risk changes
-
----
+- Structured YAML risk rules.
+- Explainable risk scoring across business impact, data consistency, visibility, reversibility, and external dependency.
+- Negative keyword handling to reduce false positives.
+- Traceability report with input hash, matched rules, score calculation, and execution time.
+- Pydantic schema validation with semantic constraints for risk level, score range, and dimension keys.
+- Idempotency coverage for stable business outputs.
+- Markdown quality report and PR-ready comment output.
+- Regression pack generation.
+- Eval cases and pytest coverage.
+- Optional FastAPI web UI for local demos.
 
 ## Demo Flow
 
 ```text
-Git Diff / API Change / OpenAPI Change Summary
+Git Diff / API Change / OpenAPI Summary
         |
         v
-Quality Gate Rules
+Change Loader
         |
         v
-Risk Analyzer
+Gate Analyzer + Risk Rules
         |
         +--> Risk Score
         +--> Impacted Areas
         +--> Regression Scope
+        +--> Traceability Report
         +--> Quality Gate Report
         +--> PR Comment
-        +--> Eval Checks
+        +--> Eval Summary
 ```
 
----
-
-## Project Structure
+## Example Output
 
 ```text
-quality-gate-agent-v0.2/
-├── examples/
-│   ├── diffs/
-│   │   └── payment_status_change.diff
-│   ├── api_changes/
-│   │   └── payment_api_change.md
-│   └── openapi/
-│       ├── old_payment_api.yaml
-│       ├── new_payment_api.yaml
-│       └── openapi_change_summary.md
-├── risk_rules/
-│   └── quality_gate_rules.yaml
-├── eval_cases/
-│   ├── high_risk_async_callback.yaml
-│   ├── medium_risk_status_change.yaml
-│   └── low_risk_copy_change.yaml
-├── src/
-│   ├── main.py
-│   ├── change_loader.py
-│   ├── gate_analyzer.py
-│   ├── risk_scoring.py
-│   ├── report_generator.py
-│   ├── pr_comment_generator.py
-│   └── eval_runner.py
-├── tests/
-│   ├── test_gate_analyzer.py
-│   ├── test_risk_scoring.py
-│   └── test_eval_cases.py
-├── outputs/
-│   ├── quality_gate_report.md
-│   ├── pr_comment.md
-│   └── eval_summary.md
-├── docs/
-│   ├── architecture.md
-│   ├── risk_model.md
-│   └── roadmap.md
-└── .github/workflows/
-    └── test.yml
+Overall Risk Level: HIGH
+Overall Risk Score: 11 / 15
+Rules Matched: 5
+Traceability: input hash, matched rules, score calculation, execution time
 ```
 
----
+Suggested regression scope can include:
+
+- Submit duplicated requests with the same request ID.
+- Simulate provider timeout and delayed callback.
+- Verify balance is deducted only once.
+- Validate frontend/backend status consistency.
+- Check reconciliation behavior for provider response drift.
 
 ## Quick Start
 
@@ -126,146 +98,63 @@ Run in strict CI gate mode:
 python -m src.main --gate-mode strict
 ```
 
-If overall risk score is `>= 10`, the process exits non-zero with:
-
-```text
-Quality gate failed: high-risk change requires manual review.
-```
-
 Run tests:
 
 ```bash
 pytest -q
 ```
 
-Run eval cases manually:
-
-```bash
-python -m src.eval_runner
-```
-
----
-
-## Example Output
-
-### Quality Gate Result
-
-```text
-Overall Risk Level: HIGH
-Risk Score: 13 / 15
-```
-
-### Impacted Areas
-
-```text
-- idempotency
-- balance consistency
-- external provider callback
-- transaction status consistency
-- reconciliation
-```
-
-### Suggested Regression Scope
-
-```text
-- Submit duplicated request with same request ID.
-- Simulate provider timeout.
-- Simulate delayed success callback.
-- Verify balance is deducted only once.
-- Verify frontend/backend status display.
-```
-
----
-
-## Example PR Comment
-
-```markdown
-## Quality Gate Result: HIGH RISK
-
-Risk Score: 13 / 15
-
-This change may impact:
-- idempotency
-- external provider callback
-- transaction status consistency
-
-Recommended before merge:
-- run duplicate request regression
-- verify delayed callback handling
-- check frontend/backend status consistency
-```
-
----
-
-## Tech Stack
-
-Python · FastAPI · HTML · Pytest · YAML · GitHub Actions · Risk-based Testing · QA Automation · CI Quality Gate
-
-## Web UI (New)
-
-Start local UI:
+Start the local web UI:
 
 ```bash
 uvicorn src.web_app:app --reload
 ```
 
-Then open `http://127.0.0.1:8000` and:
+Then open `http://127.0.0.1:8000`.
 
-1. Input API change summary
-2. Click Analyze
-3. Get Risk Score / Impacted Areas / PR Comment
-
-This helps position the project as:
-
-- AI-powered engineering tools
-- Lightweight full-stack internal tools
-- Developer productivity workflows
-
----
-
-## Current Status
-
-v0.2 prototype. Current implementation uses structured rules and explainable scoring. Future versions can integrate LLM-based change summarization, OpenAPI diff automation, GitHub PR comments, and CI merge gates.
-
-## Demo Output
-
-After running:
-
-```bash
-python3 -m src.main
-python3 -m src.eval_runner
-pytest -q
-```
-
-The agent generates:
-
-- `outputs/quality_gate_report.md`
-- `outputs/pr_comment.md`
-- `outputs/eval_summary.md`
-
-Example result:
+## Repository Structure
 
 ```text
-Overall Risk Level: HIGH
-Overall Risk Score: 13 / 15
-Passed Eval Cases: 3 / 3
+examples/                 Sanitized input examples
+risk_rules/               Public demo rule set
+eval_cases/               Expected risk behavior cases
+src/                      Analyzer, scoring, reports, traceability, validation
+tests/                    Unit and workflow tests
+docs/                     Architecture, roadmap, workflow notes
+outputs/                  Generated local reports
 ```
 
-## Key Capabilities
+## Public vs Private Boundary
 
-- Reads git diff, API change notes, and OpenAPI change summaries.
-- Matches changes against structured quality risk rules.
-- Calculates explainable risk scores.
-- Generates impacted areas and suggested regression scope.
-- Produces PR-ready quality gate comments.
-- Uses eval cases to validate whether the gate produces expected risk levels.
+This open-source version demonstrates the engine, interfaces, and engineering quality. It intentionally uses sanitized examples and generalized rules.
 
-## Interview Talking Points
+Private commercial work may include:
 
-I built this project to explore how QA can shift left in fast-moving engineering teams.
+- Domain-specific payment, logistics, ad platform, healthcare, or EdTech rule packs.
+- Customer-specific adapters for GitHub, CI, OpenAPI, incident systems, or test management tools.
+- Private historical risk cases and evaluation sets.
+- Rule weighting, false-positive tuning, and delivery playbooks.
+- Hosted dashboards or internal workflow integrations.
 
-Instead of manually deciding regression scope at the end of development, this prototype reads change context such as git diffs, API changes, and OpenAPI summaries, then maps them to structured risk rules.
+See [Open Source Boundary](docs/open-source-boundary.md) for details.
 
-The v0.2 version includes an explainable risk scoring model, PR comment output, and eval cases. The eval layer helped expose false positives in low-risk changes, which shows that quality gates should be evaluated, not just generated.
+## Quality Signals
 
-This project demonstrates my interest in QA automation, risk-based testing, CI quality gates, and AI-era quality engineering workflows.
+Public metrics and deterministic-output expectations are tracked in [Project Metrics](docs/metrics.md).
+
+## Roadmap
+
+Near-term work focuses on production readiness:
+
+- Confidence scoring and human review gates.
+- Keyword location traceability back to diff lines.
+- GitHub PR comment workflow.
+- Large PR chunking and risk aggregation.
+
+See [Roadmap](docs/roadmap.md).
+
+## Why This Project Exists
+
+I built this as a practical bridge between QA engineering, AI-assisted development, and release risk control. My background spans payment platforms, ad systems, logistics workflows, healthcare SaaS, and EdTech systems, where quality work is not only about test execution but about understanding business risk early enough to change the release decision.
+
+The core design principle is simple: use AI-era tooling to improve engineering speed, but keep the final risk signal explainable, testable, and auditable.
