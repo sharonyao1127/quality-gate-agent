@@ -9,6 +9,7 @@ from src.pr_comment_generator import generate_pr_comment
 from src.eval_runner import run_eval_cases, generate_eval_summary
 from src.eval_runner import run_ai_pr_review_eval_cases, generate_ai_pr_review_eval_summary
 from src.regression_pack_generator import generate_regression_pack
+from src.schema_validator import validate_gate_analysis_result
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +30,7 @@ def main() -> None:
     change_text = load_change_text(CHANGE_PATHS)
     rules = load_gate_rules(str(RULES_PATH))
     result = analyze_change(change_text, rules)
+    validate_gate_analysis_result(result)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
