@@ -95,6 +95,13 @@ class TraceabilityLogger:
             match_trace = MatchTrace(
                 rule_id=rule_id,
                 rule_name=rule_name,
+                line_numbers=sorted(
+                    {
+                        line_number
+                        for line_numbers in (keyword_locations or {}).values()
+                        for line_number in line_numbers
+                    }
+                ),
                 matched_keywords=matched_keywords or [],
                 negative_keywords_matched=negative_keywords or [],
                 keyword_locations=keyword_locations or {},
@@ -171,6 +178,7 @@ class TraceabilityLogger:
                     "rule_name": mt.rule_name,
                     "matched_keywords": mt.matched_keywords,
                     "negative_keywords": mt.negative_keywords_matched,
+                    "line_numbers": mt.line_numbers,
                     "keyword_locations": mt.keyword_locations,
                 }
                 for mt in self.current_trace.match_traces
@@ -213,8 +221,17 @@ class TraceabilityLogger:
                 "",
                 f"- **Matched Keywords:** {', '.join(mt.matched_keywords)}",
                 f"- **Negative Keywords:** {', '.join(mt.negative_keywords_matched) or 'None'}",
+                f"- **Input Lines:** {', '.join(str(line) for line in mt.line_numbers) or 'N/A'}",
                 "",
             ])
+            if mt.keyword_locations:
+                lines.extend([
+                    "| Keyword | Lines |",
+                    "|---------|-------|",
+                ])
+                for keyword, line_numbers in mt.keyword_locations.items():
+                    lines.append(f"| {keyword} | {', '.join(str(line) for line in line_numbers)} |")
+                lines.append("")
         
         if self.current_trace.score_trace:
             st = self.current_trace.score_trace

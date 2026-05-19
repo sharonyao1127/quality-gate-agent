@@ -21,8 +21,8 @@
 - [x] Semantic constraints for risk levels, score ranges, and dimension keys
 - [x] Idempotency tests for deterministic output
 - [x] Confidence scorer for low-certainty findings
+- [x] Keyword location traceability back to input lines
 - [ ] Human review gate for ambiguous risk decisions
-- [ ] Keyword location traceability back to input lines
 
 ## v0.4 Candidate
 
@@ -37,6 +37,6 @@
 ## Commercial Packaging
 
 - [ ] Add a short demo GIF or terminal recording
-- [ ] Add a payment change case study
+- [x] Add a payment change case study
 - [x] Add public metrics for runtime, eval coverage, and rule coverage
 - [ ] Keep production-grade rule packs and customer adapters private
