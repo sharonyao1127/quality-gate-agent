@@ -36,6 +36,7 @@ Quality Gate Agent provides a lightweight workflow:
 - Traceability report with input hash, matched rules, score calculation, and execution time.
 - Pydantic schema validation with semantic constraints for risk level, score range, and dimension keys.
 - Idempotency coverage for stable business outputs.
+- Confidence assessment for low-certainty findings and human review routing.
 - Markdown quality report and PR-ready comment output.
 - Regression pack generation.
 - Eval cases and pytest coverage.
@@ -146,7 +147,7 @@ Public metrics and deterministic-output expectations are tracked in [Project Met
 
 Near-term work focuses on production readiness:
 
-- Confidence scoring and human review gates.
+- Human review gate workflow for ambiguous decisions.
 - Keyword location traceability back to diff lines.
 - GitHub PR comment workflow.
 - Large PR chunking and risk aggregation.

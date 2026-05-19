@@ -20,7 +20,7 @@
 - [x] Output schema validation
 - [x] Semantic constraints for risk levels, score ranges, and dimension keys
 - [x] Idempotency tests for deterministic output
-- [ ] Confidence scorer for low-certainty findings
+- [x] Confidence scorer for low-certainty findings
 - [ ] Human review gate for ambiguous risk decisions
 - [ ] Keyword location traceability back to input lines
 

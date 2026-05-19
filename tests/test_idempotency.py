@@ -23,6 +23,12 @@ def _stable_result_snapshot(result):
             "rules_matched": result.trace.rules_matched if result.trace else [],
             "total_rules_evaluated": result.trace.total_rules_evaluated if result.trace else 0,
         },
+        "confidence": {
+            "score": result.confidence.score if result.confidence else None,
+            "level": result.confidence.level if result.confidence else None,
+            "review_required": result.confidence.review_required if result.confidence else None,
+            "reasons": result.confidence.reasons if result.confidence else [],
+        },
     }
 
 

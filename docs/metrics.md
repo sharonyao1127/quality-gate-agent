@@ -7,6 +7,7 @@ This document captures public, reproducible signals for the reference implementa
 - Unit and workflow tests cover risk scoring, rule matching, negative keyword handling, traceability, schema validation, regression pack generation, web app behavior, and eval cases.
 - Schema validation checks both output shape and semantic constraints, including risk level consistency, score ranges, and dimension keys.
 - Idempotency coverage verifies that stable business output is deterministic for repeated analysis of the same input.
+- Confidence scoring flags low-certainty findings for human review using explainable rule-evidence heuristics.
 
 ## Deterministic Output Contract
 
@@ -20,6 +21,7 @@ For the same input and same rule set, these fields should remain stable:
 - Impacted areas.
 - Suggested regression scope.
 - Trace input hash and matched rule IDs.
+- Confidence score, level, review requirement, and reasons.
 
 These fields are intentionally runtime-specific and should not be compared for deterministic equality:
 
