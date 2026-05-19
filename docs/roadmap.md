@@ -1,6 +1,6 @@
 # Roadmap
 
-## v0.2
+## v0.2 Completed
 
 - [x] Git diff input
 - [x] API change note input
@@ -14,7 +14,17 @@
 - [x] Pytest tests
 - [x] GitHub Actions workflow
 
-## Next
+## v0.3 In Progress
+
+- [x] Traceability report for rule matches and score calculation
+- [x] Output schema validation
+- [x] Semantic constraints for risk levels, score ranges, and dimension keys
+- [ ] Idempotency tests for deterministic output
+- [ ] Confidence scorer for low-certainty findings
+- [ ] Human review gate for ambiguous risk decisions
+- [ ] Keyword location traceability back to input lines
+
+## v0.4 Candidate
 
 - [ ] Add automated OpenAPI diff parser
 - [ ] Add GitHub PR comment workflow
@@ -23,3 +33,11 @@
 - [ ] Generate regression checklist by module
 - [ ] Add CI failure threshold for high-risk changes
 - [ ] Add dashboard-style HTML report
+
+## Commercial Packaging
+
+- [ ] Add a short demo GIF or terminal recording
+- [ ] Add a payment change case study
+- [ ] Add public metrics for runtime, eval coverage, and rule coverage
+- [ ] Add a GitHub profile README based on `docs/github-profile-readme.md`
+- [ ] Keep production-grade rule packs and customer adapters private
