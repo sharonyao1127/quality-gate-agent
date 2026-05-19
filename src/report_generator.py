@@ -67,6 +67,19 @@ def generate_gate_report(result: GateAnalysisResult) -> str:
     else:
         lines.append("Low-risk change detected by current rules. Manual review may still be needed.")
 
+    if result.confidence:
+        lines.extend([
+            "",
+            "## Confidence Assessment",
+            "",
+            f"- **Confidence:** {result.confidence.level} ({result.confidence.score}/100)",
+            f"- **Human Review Required:** {'yes' if result.confidence.review_required else 'no'}",
+        ])
+        if result.confidence.reasons:
+            lines.append("- **Reasons:**")
+            for reason in result.confidence.reasons:
+                lines.append(f"  - {reason}")
+
     # Add traceability section if available
     if result.trace:
         lines.extend([

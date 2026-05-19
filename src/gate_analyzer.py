@@ -9,6 +9,7 @@ from src.risk_scoring import (
     merge_risk_scores,
     score_dimensions,
 )
+from src.confidence_scorer import ConfidenceAssessment, assess_confidence
 from src.traceability import trace_logger, AnalysisTrace
 
 
@@ -30,6 +31,7 @@ class GateAnalysisResult:
     overall_risk_level: str
     overall_risk_score: int
     trace: Optional[AnalysisTrace] = field(default=None)
+    confidence: Optional[ConfidenceAssessment] = field(default=None)
 
 
 def load_gate_rules(path: str) -> List[Dict[str, Any]]:
@@ -132,10 +134,12 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]], input_type: st
     # Calculate execution time and finalize trace
     execution_time_ms = (time.perf_counter() - start_time) * 1000
     trace = trace_logger.finalize(execution_time_ms)
+    confidence = assess_confidence(matches, total_rules_evaluated=len(rules))
 
     return GateAnalysisResult(
         matches=matches,
         overall_risk_level=overall_level,
         overall_risk_score=overall_score,
         trace=trace,
+        confidence=confidence,
     )

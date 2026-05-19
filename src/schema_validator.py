@@ -59,11 +59,33 @@ class AnalysisTraceSchema(BaseModel):
     timestamp: str
 
 
+class ConfidenceAssessmentSchema(BaseModel):
+    score: int
+    level: str
+    review_required: bool
+    reasons: List[str]
+
+    @model_validator(mode="after")
+    def validate_semantics(self) -> "ConfidenceAssessmentSchema":
+        if self.score < 0 or self.score > 100:
+            raise ValueError(f"confidence score out of range: {self.score}")
+        if self.level not in VALID_RISK_LEVELS:
+            raise ValueError(f"Invalid confidence level '{self.level}'")
+
+        expected_level = "high" if self.score >= 80 else "medium" if self.score >= 60 else "low"
+        if self.level != expected_level:
+            raise ValueError(
+                f"confidence level '{self.level}' does not match score {self.score} (expected '{expected_level}')"
+            )
+        return self
+
+
 class GateAnalysisResultSchema(BaseModel):
     matches: List[GateMatchSchema]
     overall_risk_level: str
     overall_risk_score: int
     trace: Optional[AnalysisTraceSchema] = Field(default=None)
+    confidence: Optional[ConfidenceAssessmentSchema] = Field(default=None)
 
     @model_validator(mode="after")
     def validate_semantics(self) -> "GateAnalysisResultSchema":
@@ -109,6 +131,16 @@ def validate_gate_analysis_result(result: GateAnalysisResult) -> None:
                 "timestamp": result.trace.timestamp,
             }
             if result.trace
+            else None
+        ),
+        "confidence": (
+            {
+                "score": result.confidence.score,
+                "level": result.confidence.level,
+                "review_required": result.confidence.review_required,
+                "reasons": result.confidence.reasons,
+            }
+            if result.confidence
             else None
         ),
     }
