@@ -44,6 +44,19 @@ def main() -> None:
     (OUTPUT_DIR / "ai_pr_review_eval_summary.md").write_text(ai_eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "regression_pack.yaml").write_text(yaml.safe_dump(regression_pack, sort_keys=False), encoding="utf-8")
 
+    # Export traceability report from result
+    if result.trace:
+        from src.traceability import TraceabilityLogger
+        # Create a temporary logger to export the trace
+        temp_logger = TraceabilityLogger()
+        temp_logger.current_trace = result.trace
+        trace_report = temp_logger.export_trace(format="markdown")
+        (OUTPUT_DIR / "traceability_report.md").write_text(trace_report, encoding="utf-8")
+        
+        # Also export JSON version for programmatic access
+        trace_json = temp_logger.export_trace(format="json")
+        (OUTPUT_DIR / "traceability_report.json").write_text(trace_json, encoding="utf-8")
+
     print(
         f"Generated quality gate report with {len(result.matches)} matched risk rules. "
         f"Overall risk: {result.overall_risk_level} ({result.overall_risk_score}/15)"
@@ -53,6 +66,8 @@ def main() -> None:
     print(f"- {OUTPUT_DIR / 'eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'ai_pr_review_eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'regression_pack.yaml'}")
+    print(f"- {OUTPUT_DIR / 'traceability_report.md'}")
+    print(f"- {OUTPUT_DIR / 'traceability_report.json'}")
 
     if args.gate_mode == "strict" and result.overall_risk_score >= 10:
         raise SystemExit("Quality gate failed: high-risk change requires manual review.")

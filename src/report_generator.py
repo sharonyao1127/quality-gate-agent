@@ -67,4 +67,34 @@ def generate_gate_report(result: GateAnalysisResult) -> str:
     else:
         lines.append("Low-risk change detected by current rules. Manual review may still be needed.")
 
+    # Add traceability section if available
+    if result.trace:
+        lines.extend([
+            "",
+            "---",
+            "",
+            "## Traceability",
+            "",
+            f"- **Input Hash:** `{result.trace.input_hash}`",
+            f"- **Input Type:** {result.trace.input_type}",
+            f"- **Ruleset Version:** {result.trace.ruleset_version}",
+            f"- **Total Rules Evaluated:** {result.trace.total_rules_evaluated}",
+            f"- **Rules Matched:** {len(result.trace.rules_matched)}",
+            f"- **Execution Time:** {result.trace.execution_time_ms:.2f}ms",
+            f"- **Timestamp:** {result.trace.timestamp}",
+        ])
+
+        if result.trace.score_trace:
+            st = result.trace.score_trace
+            lines.extend([
+                "",
+                "### Score Calculation Details",
+                "",
+                f"- **Raw Score:** {st.raw_score}",
+                f"- **Final Score:** {st.final_score}",
+                f"- **Level Adjustment:** {st.level_before_adjustment} → {st.level_after_adjustment}",
+            ])
+            if st.adjustment_reason:
+                lines.append(f"- **Adjustment Reason:** {st.adjustment_reason}")
+
     return "\n".join(lines)
