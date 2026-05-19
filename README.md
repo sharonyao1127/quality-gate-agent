@@ -35,6 +35,7 @@ Quality Gate Agent provides a lightweight workflow:
 - Negative keyword handling to reduce false positives.
 - Traceability report with input hash, matched rules, score calculation, and execution time.
 - Pydantic schema validation with semantic constraints for risk level, score range, and dimension keys.
+- Idempotency coverage for stable business outputs.
 - Markdown quality report and PR-ready comment output.
 - Regression pack generation.
 - Eval cases and pytest coverage.
@@ -137,11 +138,14 @@ Private commercial work may include:
 
 See [Open Source Boundary](docs/open-source-boundary.md) for details.
 
+## Quality Signals
+
+Public metrics and deterministic-output expectations are tracked in [Project Metrics](docs/metrics.md).
+
 ## Roadmap
 
 Near-term work focuses on production readiness:
 
-- Idempotency tests for deterministic outputs.
 - Confidence scoring and human review gates.
 - Keyword location traceability back to diff lines.
 - GitHub PR comment workflow.
