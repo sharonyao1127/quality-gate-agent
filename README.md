@@ -34,6 +34,7 @@ Quality Gate Agent provides a lightweight workflow:
 - Explainable risk scoring across business impact, data consistency, visibility, reversibility, and external dependency.
 - Negative keyword handling to reduce false positives.
 - Traceability report with input hash, matched rules, score calculation, and execution time.
+- Keyword location traceability back to input line numbers.
 - Pydantic schema validation with semantic constraints for risk level, score range, and dimension keys.
 - Idempotency coverage for stable business outputs.
 - Confidence assessment for low-certainty findings and human review routing.
@@ -143,12 +144,15 @@ See [Open Source Boundary](docs/open-source-boundary.md) for details.
 
 Public metrics and deterministic-output expectations are tracked in [Project Metrics](docs/metrics.md).
 
+## Case Study
+
+See [Payment Callback Risk Review](docs/case-study-payment-risk.md) for a sanitized example of how the gate supports payment release risk review.
+
 ## Roadmap
 
 Near-term work focuses on production readiness:
 
 - Human review gate workflow for ambiguous decisions.
-- Keyword location traceability back to diff lines.
 - GitHub PR comment workflow.
 - Large PR chunking and risk aggregation.
 

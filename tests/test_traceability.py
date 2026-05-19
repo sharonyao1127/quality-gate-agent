@@ -123,6 +123,7 @@ class TestTraceabilityLogger:
             rule_name="Payment Rule",
             matched=True,
             matched_keywords=["payment", "transaction"],
+            keyword_locations={"payment": [1], "transaction": [2]},
         )
         
         logger.finalize(100.0)
@@ -133,6 +134,8 @@ class TestTraceabilityLogger:
         assert '"input_type": "api_change"' in json_output
         assert '"rules_matched"' in json_output
         assert '"payment"' in json_output
+        assert '"line_numbers"' in json_output
+        assert '"keyword_locations"' in json_output
     
     def test_export_markdown(self):
         """Test exporting trace to Markdown."""
@@ -144,6 +147,7 @@ class TestTraceabilityLogger:
             rule_name="Test Rule",
             matched=True,
             matched_keywords=["keyword"],
+            keyword_locations={"keyword": [3]},
         )
         
         logger.finalize(50.0)
@@ -154,6 +158,8 @@ class TestTraceabilityLogger:
         assert "**Input Hash:**" in md_output
         assert "## Rules Evaluation" in md_output
         assert "rule-1" in md_output
+        assert "**Input Lines:** 3" in md_output
+        assert "| keyword | 3 |" in md_output
     
     def test_multiple_rules_match(self):
         """Test logging multiple rule matches."""

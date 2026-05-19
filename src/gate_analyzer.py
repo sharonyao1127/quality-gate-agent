@@ -40,6 +40,23 @@ def load_gate_rules(path: str) -> List[Dict[str, Any]]:
     return data.get("rules", [])
 
 
+def find_keyword_locations(change_text: str, keywords: List[str]) -> Dict[str, List[int]]:
+    lines = change_text.splitlines()
+    locations: Dict[str, List[int]] = {}
+
+    for keyword in keywords:
+        keyword_lower = keyword.lower()
+        line_numbers = [
+            line_number
+            for line_number, line in enumerate(lines, start=1)
+            if keyword_lower in line.lower()
+        ]
+        if line_numbers:
+            locations[keyword] = line_numbers
+
+    return locations
+
+
 def analyze_change(change_text: str, rules: List[Dict[str, Any]], input_type: str = "generic") -> GateAnalysisResult:
     """Analyze change text based on structured quality gate rules.
     
@@ -71,6 +88,7 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]], input_type: st
         matched = [kw for kw in keywords if kw.lower() in text_lower]
         negative_keywords = rule.get("negative_keywords", [])
         matched_negative = [kw for kw in negative_keywords if kw.lower() in text_lower]
+        keyword_locations = find_keyword_locations(change_text, matched + matched_negative)
 
         # Log rule evaluation
         trace_logger.log_rule_evaluation(
@@ -79,6 +97,7 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]], input_type: st
             matched=bool(matched),
             matched_keywords=matched,
             negative_keywords=matched_negative,
+            keyword_locations=keyword_locations,
         )
 
         if matched:
