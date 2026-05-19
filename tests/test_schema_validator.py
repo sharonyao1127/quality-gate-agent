@@ -56,3 +56,49 @@ def test_validate_gate_analysis_result_raises_on_invalid_match_shape():
 
     with pytest.raises(ValidationError):
         validate_gate_analysis_result(result)
+
+
+def test_validate_gate_analysis_result_raises_on_mismatch_level_and_score():
+    result = GateAnalysisResult(
+        matches=[
+            GateMatch(
+                id="rule_1",
+                name="Rule One",
+                risk_level="low",
+                risk_score=10,
+                matched_keywords=["retry"],
+                impacted_areas=["payment"],
+                suggested_regression=["idempotency test"],
+                dimensions={"business_impact": 3, "data_consistency": 2},
+            )
+        ],
+        overall_risk_level="high",
+        overall_risk_score=10,
+        trace=None,
+    )
+
+    with pytest.raises(ValidationError):
+        validate_gate_analysis_result(result)
+
+
+def test_validate_gate_analysis_result_raises_on_unknown_dimension_key():
+    result = GateAnalysisResult(
+        matches=[
+            GateMatch(
+                id="rule_1",
+                name="Rule One",
+                risk_level="medium",
+                risk_score=5,
+                matched_keywords=["retry"],
+                impacted_areas=["payment"],
+                suggested_regression=["idempotency test"],
+                dimensions={"unknown_dimension": 2},  # type: ignore[dict-item]
+            )
+        ],
+        overall_risk_level="medium",
+        overall_risk_score=5,
+        trace=None,
+    )
+
+    with pytest.raises(ValidationError):
+        validate_gate_analysis_result(result)
