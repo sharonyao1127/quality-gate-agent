@@ -23,11 +23,12 @@
 - [x] Confidence scorer for low-certainty findings
 - [x] Keyword location traceability back to input lines
 - [ ] Human review gate for ambiguous risk decisions
+- [x] GitHub Actions workflow for tests and report artifacts
 
 ## v0.4 Candidate
 
 - [ ] Add automated OpenAPI diff parser
-- [ ] Add GitHub PR comment workflow
+- [ ] Add GitHub PR comment posting workflow
 - [ ] Add module ownership mapping
 - [ ] Add LLM-based change summary
 - [ ] Generate regression checklist by module
@@ -39,4 +40,5 @@
 - [ ] Add a short demo GIF or terminal recording
 - [x] Add a payment change case study
 - [x] Add public metrics for runtime, eval coverage, and rule coverage
+- [x] Add demo script for README/client walkthroughs
 - [ ] Keep production-grade rule packs and customer adapters private

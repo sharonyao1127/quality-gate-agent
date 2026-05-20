@@ -63,6 +63,8 @@ Gate Analyzer + Risk Rules
         +--> Eval Summary
 ```
 
+For a guided walkthrough, see [Demo Script](docs/demo-script.md).
+
 ## Example Output
 
 ```text
@@ -91,13 +93,13 @@ pip install -r requirements.txt
 Generate reports:
 
 ```bash
-python -m src.main
+python3 -m src.main
 ```
 
 Run in strict CI gate mode:
 
 ```bash
-python -m src.main --gate-mode strict
+python3 -m src.main --gate-mode strict
 ```
 
 Run tests:
@@ -144,6 +146,8 @@ See [Open Source Boundary](docs/open-source-boundary.md) for details.
 
 Public metrics and deterministic-output expectations are tracked in [Project Metrics](docs/metrics.md).
 
+The repository also includes a GitHub Actions workflow that runs tests, generates quality gate outputs, and uploads generated reports as artifacts.
+
 ## Case Study
 
 See [Payment Callback Risk Review](docs/case-study-payment-risk.md) for a sanitized example of how the gate supports payment release risk review.
@@ -157,6 +161,13 @@ Near-term work focuses on production readiness:
 - Large PR chunking and risk aggregation.
 
 See [Roadmap](docs/roadmap.md).
+
+## More Documentation
+
+- [Architecture](docs/architecture.md)
+- [Demo Script](docs/demo-script.md)
+- [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
+- [Open Source Boundary](docs/open-source-boundary.md)
 
 ## Why This Project Exists
 
