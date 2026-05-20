@@ -33,3 +33,9 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+      - name: Upload quality gate outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-outputs
+          path: outputs/
