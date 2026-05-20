@@ -74,6 +74,8 @@ Rules Matched: 5
 Traceability: input hash, matched rules, score calculation, execution time
 ```
 
+See [Demo Output](docs/demo-output.md) for a quick example of the generated report and PR comment shape.
+
 Suggested regression scope can include:
 
 - Submit duplicated requests with the same request ID.
