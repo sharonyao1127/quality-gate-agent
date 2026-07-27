@@ -1,9 +1,11 @@
 import argparse
+import json
 from pathlib import Path
 import yaml
 
 from src.change_loader import load_change_text
 from src.gate_analyzer import analyze_change, load_gate_rules
+from src.github_client import GitHubClient, GitHubPullRequest
 from src.report_generator import generate_gate_report
 from src.pr_comment_generator import generate_pr_comment
 from src.eval_runner import run_eval_cases, generate_eval_summary
@@ -25,11 +27,41 @@ OUTPUT_DIR = ROOT / "outputs"
 def main() -> None:
     parser = argparse.ArgumentParser(description="Quality Gate Agent")
     parser.add_argument("--gate-mode", choices=["report", "strict"], default="report")
+    parser.add_argument(
+        "--input",
+        action="append",
+        dest="input_paths",
+        help="Path to a diff or change description. Repeat for multiple files.",
+    )
+    parser.add_argument(
+        "--github-repository",
+        help="GitHub repository in owner/name format.",
+    )
+    parser.add_argument("--github-pr", type=int, help="GitHub pull request number.")
+    parser.add_argument(
+        "--publish-comment",
+        action="store_true",
+        help="Create or update the quality gate comment on the GitHub pull request.",
+    )
     args = parser.parse_args()
 
-    change_text = load_change_text(CHANGE_PATHS)
+    github_pull_request = None
+    if args.github_pr is not None:
+        if not args.github_repository or "/" not in args.github_repository:
+            parser.error("--github-pr requires --github-repository owner/name.")
+        owner, repo = args.github_repository.split("/", maxsplit=1)
+        github_pull_request = GitHubPullRequest(owner=owner, repo=repo, number=args.github_pr)
+        with GitHubClient() as github_client:
+            change_text = github_client.get_pull_request_diff(github_pull_request)
+        input_type = "git_diff"
+    else:
+        if args.publish_comment:
+            parser.error("--publish-comment requires --github-pr.")
+        change_text = load_change_text(args.input_paths or CHANGE_PATHS)
+        input_type = "generic" if args.input_paths else "demo"
+
     rules = load_gate_rules(str(RULES_PATH))
-    result = analyze_change(change_text, rules)
+    result = analyze_change(change_text, rules, input_type=input_type)
     validate_gate_analysis_result(result)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -39,12 +71,39 @@ def main() -> None:
     eval_summary = generate_eval_summary(run_eval_cases())
     ai_eval_summary = generate_ai_pr_review_eval_summary(run_ai_pr_review_eval_cases())
     regression_pack = generate_regression_pack(result)
+    gate_result = {
+        "risk_level": result.overall_risk_level,
+        "risk_score": result.overall_risk_score,
+        "matched_rules": [
+            {
+                "id": match.id,
+                "name": match.name,
+                "risk_level": match.risk_level,
+                "risk_score": match.risk_score,
+                "matched_keywords": match.matched_keywords,
+            }
+            for match in result.matches
+        ],
+        "confidence": (
+            {
+                "level": result.confidence.level,
+                "score": result.confidence.score,
+                "review_required": result.confidence.review_required,
+            }
+            if result.confidence
+            else None
+        ),
+    }
 
     (OUTPUT_DIR / "quality_gate_report.md").write_text(report, encoding="utf-8")
     (OUTPUT_DIR / "pr_comment.md").write_text(pr_comment, encoding="utf-8")
     (OUTPUT_DIR / "eval_summary.md").write_text(eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "ai_pr_review_eval_summary.md").write_text(ai_eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "regression_pack.yaml").write_text(yaml.safe_dump(regression_pack, sort_keys=False), encoding="utf-8")
+    (OUTPUT_DIR / "gate_result.json").write_text(
+        json.dumps(gate_result, indent=2),
+        encoding="utf-8",
+    )
 
     # Export traceability report from result
     if result.trace:
@@ -70,6 +129,15 @@ def main() -> None:
     print(f"- {OUTPUT_DIR / 'regression_pack.yaml'}")
     print(f"- {OUTPUT_DIR / 'traceability_report.md'}")
     print(f"- {OUTPUT_DIR / 'traceability_report.json'}")
+    print(f"- {OUTPUT_DIR / 'gate_result.json'}")
+
+    if args.publish_comment and github_pull_request:
+        with GitHubClient() as github_client:
+            comment_url = github_client.upsert_pull_request_comment(
+                github_pull_request,
+                pr_comment,
+            )
+        print(f"- GitHub PR comment: {comment_url}")
 
     if args.gate_mode == "strict" and result.overall_risk_score >= 10:
         raise SystemExit("Quality gate failed: high-risk change requires manual review.")

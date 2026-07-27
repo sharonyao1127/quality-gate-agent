@@ -10,7 +10,7 @@ from src.risk_scoring import (
     score_dimensions,
 )
 from src.confidence_scorer import ConfidenceAssessment, assess_confidence
-from src.traceability import trace_logger, AnalysisTrace
+from src.traceability import AnalysisTrace, TraceabilityLogger
 
 
 @dataclass
@@ -70,9 +70,6 @@ def analyze_change(change_text: str, rules: List[Dict[str, Any]], input_type: st
     """
     start_time = time.perf_counter()
     
-    # Reset and initialize traceability logger for fresh analysis
-    from src.traceability import TraceabilityLogger
-    global trace_logger
     trace_logger = TraceabilityLogger()
     trace_logger.start_analysis(change_text, input_type)
     
