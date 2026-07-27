@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from src.gate_analyzer import analyze_change, find_keyword_locations
 
 
@@ -72,6 +74,30 @@ def test_analyze_change_returns_low_when_no_match():
     result = analyze_change("Only update copywriting text.", [])
     assert result.overall_risk_level == "low"
     assert result.overall_risk_score == 0
+
+
+def test_concurrent_analyses_keep_independent_traces():
+    rules = [
+        {
+            "id": "callback",
+            "name": "Callback",
+            "keywords": ["callback"],
+            "dimensions": {"business_impact": 2},
+        },
+        {
+            "id": "retry",
+            "name": "Retry",
+            "keywords": ["retry"],
+            "dimensions": {"business_impact": 1},
+        },
+    ]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        callback_future = executor.submit(analyze_change, "callback only", rules)
+        retry_future = executor.submit(analyze_change, "retry only", rules)
+
+    assert callback_future.result().trace.rules_matched == ["callback"]
+    assert retry_future.result().trace.rules_matched == ["retry"]
 
 
 def test_analyze_change_downgrades_high_risk_when_negative_keywords_matched():
