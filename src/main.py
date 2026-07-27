@@ -12,6 +12,13 @@ from src.eval_runner import run_eval_cases, generate_eval_summary
 from src.eval_runner import run_ai_pr_review_eval_cases, generate_ai_pr_review_eval_summary
 from src.regression_pack_generator import generate_regression_pack
 from src.schema_validator import validate_gate_analysis_result
+from src.llm_risk_classifier import LLMRiskClassifier
+from src.llm_judge import LLMJudge, MockLLMJudge
+from src.eval_framework import (
+    compare_classifiers,
+    generate_eval_report,
+    load_eval_dataset,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +50,17 @@ def main() -> None:
         action="store_true",
         help="Create or update the quality gate comment on the GitHub pull request.",
     )
+    parser.add_argument(
+        "--classifier",
+        choices=["keyword", "llm", "hybrid"],
+        default="keyword",
+        help="Risk classifier strategy. hybrid requires OPENAI_API_KEY.",
+    )
+    parser.add_argument(
+        "--eval",
+        action="store_true",
+        help="Run classifier evaluation and LLM-as-a-Judge on generated reports.",
+    )
     args = parser.parse_args()
 
     github_pull_request = None
@@ -61,7 +79,14 @@ def main() -> None:
         input_type = "generic" if args.input_paths else "demo"
 
     rules = load_gate_rules(str(RULES_PATH))
-    result = analyze_change(change_text, rules, input_type=input_type)
+    llm_classifier = LLMRiskClassifier()
+    result = analyze_change(
+        change_text,
+        rules,
+        input_type=input_type,
+        llm_classifier=llm_classifier,
+        classifier_mode=args.classifier,
+    )
     validate_gate_analysis_result(result)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -74,6 +99,8 @@ def main() -> None:
     gate_result = {
         "risk_level": result.overall_risk_level,
         "risk_score": result.overall_risk_score,
+        "classifier_mode": args.classifier,
+        "llm_used": result.llm_result is not None,
         "matched_rules": [
             {
                 "id": match.id,
@@ -81,6 +108,8 @@ def main() -> None:
                 "risk_level": match.risk_level,
                 "risk_score": match.risk_score,
                 "matched_keywords": match.matched_keywords,
+                "source": match.source,
+                "reasoning": match.reasoning,
             }
             for match in result.matches
         ],
@@ -117,6 +146,31 @@ def main() -> None:
         # Also export JSON version for programmatic access
         trace_json = temp_logger.export_trace(format="json")
         (OUTPUT_DIR / "traceability_report.json").write_text(trace_json, encoding="utf-8")
+
+    if args.eval:
+        eval_dataset = load_eval_dataset(ROOT / "eval_dataset" / "risk_samples.yaml")
+        classifier_metrics = compare_classifiers(eval_dataset, rules, llm_classifier)
+        eval_report = generate_eval_report(classifier_metrics)
+        (OUTPUT_DIR / "classifier_eval_report.md").write_text(eval_report, encoding="utf-8")
+        print(f"- {OUTPUT_DIR / 'classifier_eval_report.md'}")
+
+        judge = LLMJudge() if LLMJudge().is_available() else MockLLMJudge()
+        judge_score, judge_usage = judge.judge_report(change_text, report)
+        judge_result = {
+            "helpfulness": judge_score.helpfulness if judge_score else None,
+            "actionability": judge_score.actionability if judge_score else None,
+            "accuracy": judge_score.accuracy if judge_score else None,
+            "overall": judge_score.overall if judge_score else None,
+            "reasoning": judge_score.reasoning if judge_score else None,
+            "model": judge_usage.model,
+            "tokens": judge_usage.total_tokens,
+            "latency_ms": judge_usage.latency_ms,
+        }
+        (OUTPUT_DIR / "judge_result.json").write_text(
+            json.dumps(judge_result, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(f"- {OUTPUT_DIR / 'judge_result.json'}")
 
     print(
         f"Generated quality gate report with {len(result.matches)} matched risk rules. "

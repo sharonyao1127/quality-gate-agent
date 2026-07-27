@@ -19,8 +19,9 @@ def generate_gate_report(result: GateAnalysisResult) -> str:
         lines.append("| No matched risk | low | 0 | N/A |")
     else:
         for match in result.matches:
+            source_tag = f" ({match.source})" if match.source != "keyword" else ""
             lines.append(
-                f"| {match.name} | {match.risk_level} | {match.risk_score} | {', '.join(match.matched_keywords)} |"
+                f"| {match.name}{source_tag} | {match.risk_level} | {match.risk_score} | {', '.join(match.matched_keywords)} |"
             )
 
     lines.extend(["", "## Risk Dimensions", ""])
@@ -28,6 +29,10 @@ def generate_gate_report(result: GateAnalysisResult) -> str:
     if result.matches:
         for match in result.matches:
             lines.append(f"### {match.name}")
+            if match.reasoning:
+                lines.append(f"**Reasoning:** {match.reasoning}")
+            if match.source and match.source != "keyword":
+                lines.append(f"**Source:** {match.source}")
             for key, value in match.dimensions.items():
                 lines.append(f"- {key}: {value}")
             lines.append("")
