@@ -4,14 +4,11 @@ from pathlib import Path
 import yaml
 
 from src.change_loader import load_change_text
-from src.gate_analyzer import analyze_change, load_gate_rules
+from src.agent_workflow import run_agent_workflow
+from src.gate_analyzer import load_gate_rules
 from src.github_client import GitHubClient, GitHubPullRequest
-from src.report_generator import generate_gate_report
-from src.pr_comment_generator import generate_pr_comment
 from src.eval_runner import run_eval_cases, generate_eval_summary
 from src.eval_runner import run_ai_pr_review_eval_cases, generate_ai_pr_review_eval_summary
-from src.regression_pack_generator import generate_regression_pack
-from src.schema_validator import validate_gate_analysis_result
 from src.llm_risk_classifier import LLMRiskClassifier
 from src.llm_judge import LLMJudge, MockLLMJudge
 from src.eval_framework import (
@@ -80,27 +77,38 @@ def main() -> None:
 
     rules = load_gate_rules(str(RULES_PATH))
     llm_classifier = LLMRiskClassifier()
-    result = analyze_change(
+    workflow = run_agent_workflow(
         change_text,
         rules,
         input_type=input_type,
-        llm_classifier=llm_classifier,
         classifier_mode=args.classifier,
+        llm_classifier=llm_classifier,
+        strict=args.gate_mode == "strict",
     )
-    validate_gate_analysis_result(result)
+    result = workflow.analysis
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    report = generate_gate_report(result)
-    pr_comment = generate_pr_comment(result)
+    report = workflow.report
+    pr_comment = workflow.pr_comment
     eval_summary = generate_eval_summary(run_eval_cases())
     ai_eval_summary = generate_ai_pr_review_eval_summary(run_ai_pr_review_eval_cases())
-    regression_pack = generate_regression_pack(result)
+    regression_pack = workflow.regression_pack
     gate_result = {
         "risk_level": result.overall_risk_level,
         "risk_score": result.overall_risk_score,
         "classifier_mode": args.classifier,
         "llm_used": result.llm_result is not None,
+        "agent_workflow": {
+            "audit_steps": workflow.audit_steps,
+            "decision": {
+                "action": workflow.decision.action,
+                "review_required": workflow.decision.review_required,
+                "merge_blocked": workflow.decision.merge_blocked,
+                "reasons": workflow.decision.reasons,
+                "required_followups": workflow.decision.required_followups,
+            },
+        },
         "matched_rules": [
             {
                 "id": match.id,
@@ -193,7 +201,7 @@ def main() -> None:
             )
         print(f"- GitHub PR comment: {comment_url}")
 
-    if args.gate_mode == "strict" and result.overall_risk_score >= 10:
+    if workflow.decision.merge_blocked:
         raise SystemExit("Quality gate failed: high-risk change requires manual review.")
 
 

@@ -17,10 +17,10 @@ Quality Gate Agent provides a lightweight workflow:
 1. Load a git diff, API change note, or OpenAPI change summary.
 2. Match the change against structured risk rules.
 3. Calculate an explainable risk score.
-4. Generate impacted areas and regression scope.
-5. Export a Markdown report and PR comment.
-6. Validate output shape and semantic constraints.
-7. Preserve traceability for rule matches and scoring decisions.
+4. Validate output shape and semantic constraints.
+5. Decide the gate action with risk and confidence signals.
+6. Generate impacted areas, regression scope, reports, and PR comments.
+7. Preserve traceability and audit steps for rule matches, model usage, and gate decisions.
 
 ## Best-Fit Use Cases
 
@@ -50,6 +50,8 @@ Quality Gate Agent provides a lightweight workflow:
 - **Hybrid risk classifier**: keyword rules + OpenAI-compatible LLM classification with structured output.
 - **Classifier evaluation framework**: labeled dataset, per-rule precision/recall/F1, and macro-F1 comparison across keyword / hybrid / LLM modes.
 - **LLM-as-a-Judge**: scores the helpfulness, actionability, and accuracy of generated reports using a separate LLM judge.
+- **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
+- **Gate decision layer**: maps risk and confidence into `pass`, `targeted_regression`, `human_review_required`, or `fail`.
 - Graceful offline fallback: when no API key is configured, the system runs the keyword classifier and uses a deterministic mock judge for tests and demos.
 
 ## Demo Flow
@@ -99,6 +101,12 @@ For a guided walkthrough, see [Demo Script](docs/demo-script.md).
                     |   Risk Merger         |
                     |   + Confidence        |
                     |   + Traceability      |
+                    +-----------------------+
+                                |
+                                v
+                    +-----------------------+
+                    |   Gate Decision       |
+                    | pass / review / fail  |
                     +-----------------------+
                                 |
           +---------------------+---------------------+
@@ -286,6 +294,7 @@ I built this as a practical bridge between QA engineering, AI-assisted developme
 The project is also a deliberate portfolio piece for the AI quality / agent reliability transition. It shows hands-on experience with:
 
 - LLM structured-output classification
+- Agent workflow orchestration and gate decision modeling
 - Labeled evaluation datasets and classifier metrics
 - LLM-as-a-Judge output quality scoring
 - CI/CD integration and traceability
