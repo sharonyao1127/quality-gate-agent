@@ -5,6 +5,12 @@ import yaml
 
 from src.change_loader import load_change_text
 from src.agent_workflow import run_agent_workflow
+from src.business_risk_analyzer import (
+    analyze_business_risk,
+    business_findings_to_change_text,
+    generate_business_risk_report,
+)
+from src.context_pack import build_context_pack
 from src.gate_analyzer import load_gate_rules
 from src.github_client import GitHubClient, GitHubPullRequest
 from src.eval_runner import run_eval_cases, generate_eval_summary
@@ -36,6 +42,25 @@ def main() -> None:
         action="append",
         dest="input_paths",
         help="Path to a diff or change description. Repeat for multiple files.",
+    )
+    parser.add_argument(
+        "--input-type",
+        choices=[
+            "generic",
+            "git_diff",
+            "api_change",
+            "openapi",
+            "prd",
+            "business_requirement",
+            "release_note",
+        ],
+        help="Type of change context being analyzed.",
+    )
+    parser.add_argument("--title", help="Optional title for the change context.")
+    parser.add_argument(
+        "--business-domain",
+        choices=["generic", "payment", "ads", "logistics", "healthcare", "edtech"],
+        help="Optional business domain hint for PRD/business risk analysis.",
     )
     parser.add_argument(
         "--github-repository",
@@ -73,14 +98,29 @@ def main() -> None:
         if args.publish_comment:
             parser.error("--publish-comment requires --github-pr.")
         change_text = load_change_text(args.input_paths or CHANGE_PATHS)
-        input_type = "generic" if args.input_paths else "demo"
+        input_type = args.input_type or ("generic" if args.input_paths else "demo")
+
+    context_pack = build_context_pack(
+        change_text,
+        source_type=input_type,
+        title=args.title,
+        business_domain=args.business_domain,
+    )
+    business_risk = None
+    workflow_change_text = change_text
+    if context_pack.source_type in {"prd", "business_requirement", "release_note"}:
+        business_risk = analyze_business_risk(context_pack)
+        business_risk_context = business_findings_to_change_text(business_risk)
+        workflow_change_text = context_pack.to_analysis_text()
+        if business_risk_context:
+            workflow_change_text = f"{workflow_change_text}\n\n{business_risk_context}"
 
     rules = load_gate_rules(str(RULES_PATH))
     llm_classifier = LLMRiskClassifier()
     workflow = run_agent_workflow(
-        change_text,
+        workflow_change_text,
         rules,
-        input_type=input_type,
+        input_type=context_pack.source_type,
         classifier_mode=args.classifier,
         llm_classifier=llm_classifier,
         strict=args.gate_mode == "strict",
@@ -99,6 +139,8 @@ def main() -> None:
         "risk_score": result.overall_risk_score,
         "classifier_mode": args.classifier,
         "llm_used": result.llm_result is not None,
+        "context_pack": context_pack.to_dict(),
+        "business_risk": business_risk.to_dict() if business_risk else None,
         "agent_workflow": {
             "audit_steps": workflow.audit_steps,
             "decision": {
@@ -141,6 +183,11 @@ def main() -> None:
         json.dumps(gate_result, indent=2),
         encoding="utf-8",
     )
+    if business_risk:
+        (OUTPUT_DIR / "business_risk_report.md").write_text(
+            generate_business_risk_report(business_risk),
+            encoding="utf-8",
+        )
 
     # Export traceability report from result
     if result.trace:
@@ -163,7 +210,7 @@ def main() -> None:
         print(f"- {OUTPUT_DIR / 'classifier_eval_report.md'}")
 
         judge = LLMJudge() if LLMJudge().is_available() else MockLLMJudge()
-        judge_score, judge_usage = judge.judge_report(change_text, report)
+        judge_score, judge_usage = judge.judge_report(workflow_change_text, report)
         judge_result = {
             "helpfulness": judge_score.helpfulness if judge_score else None,
             "actionability": judge_score.actionability if judge_score else None,
@@ -192,6 +239,8 @@ def main() -> None:
     print(f"- {OUTPUT_DIR / 'traceability_report.md'}")
     print(f"- {OUTPUT_DIR / 'traceability_report.json'}")
     print(f"- {OUTPUT_DIR / 'gate_result.json'}")
+    if business_risk:
+        print(f"- {OUTPUT_DIR / 'business_risk_report.md'}")
 
     if args.publish_comment and github_pull_request:
         with GitHubClient() as github_client:

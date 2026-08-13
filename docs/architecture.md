@@ -5,12 +5,14 @@ Quality Gate Agent is a reference implementation for explainable release-risk re
 ## Current Architecture
 
 ```text
-Git Diff / API Note / OpenAPI Summary / GitHub PR Diff
+Git Diff / API Note / OpenAPI Summary / PRD / GitHub PR Diff
         |
         v
 Agent Workflow Orchestrator
         |
         +--> Load Change Context
+        +--> Build Context Pack
+        +--> Review Business Risk
         +--> Classify Risk
         +--> Validate Schema
         +--> Decide Gate
@@ -53,6 +55,8 @@ Outputs
 ## Core Modules
 
 - `src/change_loader.py`: loads sanitized example inputs for local runs.
+- `src/context_pack.py`: normalizes change text, PRDs, and business requirements into a structured context pack.
+- `src/business_risk_analyzer.py`: flags PRD and business-risk gaps such as missing acceptance criteria, callback ambiguity, reconciliation gaps, rollout risk, and ownership gaps.
 - `src/agent_workflow.py`: orchestrates the analyze, validate, decide, and generate workflow.
 - `src/gate_analyzer.py`: matches change text against risk rules and produces risk findings.
 - `src/gate_decision.py`: maps risk and confidence into an explicit gate action.
@@ -71,6 +75,7 @@ Outputs
 - Deterministic core: structured rules and schema validation keep the main gate stable and testable.
 - Explicit decisions: final gate actions are represented as structured data, not hidden inside report prose.
 - Human review friendly: confidence assessment marks findings that need manual inspection.
+- Context-aware inputs: requirements and PRDs are reviewed before implementation, not only after code exists.
 - Open-core boundary: public examples demonstrate the workflow; production rule packs and adapters stay private.
 
 ## Future Extensions
@@ -80,3 +85,5 @@ Outputs
 - Module ownership mapping.
 - OpenAPI diff automation.
 - Optional LLM summarization with structured output validation.
+- Knowledge-store retrieval for historical risk patterns and incident-derived checks.
+- MCP/tool interface for agent workflow integration.
