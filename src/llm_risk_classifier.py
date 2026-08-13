@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import httpx
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from src.risk_scoring import calculate_level_from_score, merge_risk_scores
 
@@ -57,6 +57,16 @@ class LLMRiskFinding(BaseModel):
                 raise ValueError(f"Dimension {key} score out of range: {score}")
         return value
 
+    @model_validator(mode="after")
+    def _validate_level_matches_score(self) -> "LLMRiskFinding":
+        expected_level = calculate_level_from_score(self.risk_score)
+        if self.risk_level != expected_level:
+            raise ValueError(
+                f"risk_level {self.risk_level} does not match risk_score {self.risk_score}; "
+                f"expected {expected_level}"
+            )
+        return self
+
 
 class LLMClassificationResult(BaseModel):
     findings: List[LLMRiskFinding]
@@ -77,6 +87,22 @@ class LLMClassificationResult(BaseModel):
         if value < 0 or value > 15:
             raise ValueError(f"overall_risk_score out of range: {value}")
         return value
+
+    @model_validator(mode="after")
+    def _validate_level_matches_score(self) -> "LLMClassificationResult":
+        expected_level = calculate_level_from_score(self.overall_risk_score)
+        if self.overall_risk_level != expected_level:
+            raise ValueError(
+                f"overall_risk_level {self.overall_risk_level} does not match "
+                f"overall_risk_score {self.overall_risk_score}; expected {expected_level}"
+            )
+
+        expected_score = merge_risk_scores(finding.risk_score for finding in self.findings)
+        if self.overall_risk_score != expected_score:
+            raise ValueError(
+                f"overall_risk_score {self.overall_risk_score} does not match max finding score {expected_score}"
+            )
+        return self
 
 
 @dataclass
@@ -261,9 +287,9 @@ def llm_finding_to_gate_match(finding: LLMRiskFinding) -> Dict[str, Any]:
         "risk_level": finding.risk_level,
         "risk_score": finding.risk_score,
         "matched_keywords": ["llm-classified"],
-        "impacted_areas": finding.impacted_areas,
-        "suggested_regression": finding.suggested_regression,
-        "dimensions": finding.dimensions,
+        "impacted_areas": list(finding.impacted_areas),
+        "suggested_regression": list(finding.suggested_regression),
+        "dimensions": dict(finding.dimensions),
         "source": "llm",
         "reasoning": finding.reasoning,
         "confidence": finding.confidence,
@@ -275,7 +301,16 @@ def merge_llm_into_keyword_result(
     llm_result: LLMClassificationResult,
 ) -> List[Dict[str, Any]]:
     """Merge LLM findings into keyword matches, keeping the highest-score signal per rule."""
-    by_id: Dict[str, Dict[str, Any]] = {match["id"]: match for match in keyword_matches}
+    by_id: Dict[str, Dict[str, Any]] = {
+        match["id"]: {
+            **match,
+            "matched_keywords": list(match.get("matched_keywords", [])),
+            "impacted_areas": list(match.get("impacted_areas", [])),
+            "suggested_regression": list(match.get("suggested_regression", [])),
+            "dimensions": dict(match.get("dimensions", {})),
+        }
+        for match in keyword_matches
+    }
 
     for finding in llm_result.findings:
         existing = by_id.get(finding.rule_id)
