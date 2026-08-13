@@ -216,6 +216,7 @@ def main() -> None:
             rules,
             classifier_mode=args.classifier,
             llm_classifier=llm_classifier,
+            strict=args.gate_mode == "strict",
         )
         decision_eval_report = generate_decision_eval_report(decision_metrics)
         (OUTPUT_DIR / "decision_eval_report.md").write_text(decision_eval_report, encoding="utf-8")
@@ -223,6 +224,7 @@ def main() -> None:
             json.dumps(
                 {
                     "classifier_mode": decision_metrics.classifier_mode,
+                    "gate_mode": decision_metrics.gate_mode,
                     "decision_accuracy": decision_metrics.decision_accuracy,
                     "review_routing_accuracy": decision_metrics.review_routing_accuracy,
                     "high_risk_recall": decision_metrics.high_risk_recall,

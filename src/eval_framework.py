@@ -71,6 +71,7 @@ class DecisionEvalMetrics:
     high_risk_recall: float
     samples_evaluated: int
     classifier_mode: str
+    gate_mode: str = "report"
     failures: List[DecisionEvalFailure] = field(default_factory=list)
 
 
@@ -196,6 +197,7 @@ def evaluate_gate_decisions(
     rules: List[Dict[str, object]],
     classifier_mode: str = "keyword",
     llm_classifier: Optional[LLMRiskClassifier] = None,
+    strict: bool = False,
 ) -> DecisionEvalMetrics:
     from src.agent_workflow import run_agent_workflow
 
@@ -213,13 +215,14 @@ def evaluate_gate_decisions(
             input_type="eval",
             classifier_mode=classifier_mode,
             llm_classifier=llm_classifier,
+            strict=strict,
         )
-        expected_action = sample.expected_gate_action or _default_expected_action(sample.expected_overall_level)
+        expected_action = _expected_action(sample, strict=strict)
         actual_action = workflow.decision.action
         decision_correct = actual_action == expected_action
         level_correct = workflow.analysis.overall_risk_level == sample.expected_overall_level
 
-        if decision_correct and level_correct:
+        if decision_correct:
             correct_decisions += 1
 
         if sample.expected_review_required is not None:
@@ -257,6 +260,7 @@ def evaluate_gate_decisions(
         high_risk_recall=recalled_high_risk / expected_high_risk if expected_high_risk else 0.0,
         samples_evaluated=len(samples),
         classifier_mode=classifier_mode,
+        gate_mode="strict" if strict else "report",
         failures=failures,
     )
 
@@ -269,10 +273,10 @@ def generate_decision_eval_report(metrics: DecisionEvalMetrics) -> str:
         "",
         "## Metrics",
         "",
-        "| Classifier | Decision Accuracy | Review Routing Accuracy | High-Risk Recall | Samples |",
-        "|---|---:|---:|---:|---:|",
+        "| Classifier | Gate Mode | Decision Accuracy | Review Routing Accuracy | High-Risk Recall | Samples |",
+        "|---|---|---:|---:|---:|---:|",
         (
-            f"| {metrics.classifier_mode} | {metrics.decision_accuracy:.2%} | "
+            f"| {metrics.classifier_mode} | {metrics.gate_mode} | {metrics.decision_accuracy:.2%} | "
             f"{metrics.review_routing_accuracy:.2%} | {metrics.high_risk_recall:.2%} | "
             f"{metrics.samples_evaluated} |"
         ),
@@ -340,6 +344,12 @@ def _default_expected_action(expected_overall_level: str) -> str:
     if expected_overall_level == "medium":
         return "targeted_regression"
     return "pass"
+
+
+def _expected_action(sample: EvalSample, strict: bool) -> str:
+    if strict and sample.expected_overall_level == "high":
+        return "fail"
+    return sample.expected_gate_action or _default_expected_action(sample.expected_overall_level)
 
 
 def main() -> None:

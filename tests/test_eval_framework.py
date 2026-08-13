@@ -123,5 +123,30 @@ def test_generate_decision_eval_report_lists_failures():
     report = generate_decision_eval_report(metrics)
 
     assert metrics.failures
+    assert metrics.decision_accuracy == 1.0
+    assert metrics.high_risk_recall == 0.0
     assert report.startswith("# Agent Decision Evaluation")
+    assert "| keyword | report |" in report
     assert "expected_high_but_copy" in report
+
+
+def test_evaluate_gate_decisions_uses_strict_gate_mode_for_high_risk_actions():
+    rules = load_gate_rules(RULES_PATH)
+    samples = [
+        EvalSample(
+            name="high_callback",
+            input_text="provider callback timeout delayed",
+            expected_findings=[
+                ExpectedFinding(rule_id="async_callback_risk", risk_level="high")
+            ],
+            expected_overall_level="high",
+            expected_gate_action="human_review_required",
+            expected_review_required=True,
+        )
+    ]
+
+    metrics = evaluate_gate_decisions(samples, rules, "keyword", strict=True)
+
+    assert metrics.gate_mode == "strict"
+    assert metrics.decision_accuracy == 1.0
+    assert metrics.failures == []
