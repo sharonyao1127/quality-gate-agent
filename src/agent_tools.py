@@ -44,7 +44,7 @@ class AnalyzeChangeInput(BaseModel):
 class AnalyzePrdInput(BaseModel):
     prd_text: str = Field(..., min_length=1, description="Product requirement or business requirement text.")
     title: Optional[str] = Field(default=None, description="Optional PRD title override.")
-    business_domain: BusinessDomain = Field(default="generic", description="Business domain for risk routing.")
+    business_domain: Optional[BusinessDomain] = Field(default=None, description="Optional business domain hint.")
     classifier_mode: ClassifierMode = Field(default="keyword", description="Risk classifier strategy.")
     strict: bool = Field(default=False, description="Whether high risk should block the gate.")
 
@@ -110,69 +110,80 @@ def run_agent_tool(tool_name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def analyze_change_tool(tool_input: AnalyzeChangeInput) -> Dict[str, Any]:
-    rules = load_gate_rules(str(DEFAULT_RULES_PATH))
     context_pack = build_context_pack(
         tool_input.change_text,
         source_type=tool_input.input_type,
         title=tool_input.title,
         business_domain=tool_input.business_domain,
     )
-    workflow = run_agent_workflow(
-        tool_input.change_text,
-        rules,
-        input_type=context_pack.source_type,
+
+    return _run_change_workflow(
+        raw_text=tool_input.change_text,
+        context_pack=context_pack,
         classifier_mode=tool_input.classifier_mode,
-        llm_classifier=LLMRiskClassifier(),
         strict=tool_input.strict,
+        tool_name="analyze_change",
     )
 
-    return {
-        "tool_name": "analyze_change",
+def _run_change_workflow(
+    raw_text: str,
+    context_pack: Any,
+    classifier_mode: ClassifierMode,
+    strict: bool,
+    tool_name: str,
+) -> Dict[str, Any]:
+    rules = load_gate_rules(str(DEFAULT_RULES_PATH))
+    business_risk = None
+    workflow_text = raw_text
+    audit_prefix: List[str] = []
+
+    if context_pack.source_type in {"prd", "business_requirement", "release_note"}:
+        business_risk = analyze_business_risk(context_pack)
+        business_risk_context = business_findings_to_change_text(business_risk)
+        workflow_text = context_pack.to_analysis_text()
+        audit_prefix.extend(["build_context_pack", "analyze_business_risk"])
+        if business_risk_context:
+            workflow_text = f"{workflow_text}\n\n{business_risk_context}"
+
+    workflow = run_agent_workflow(
+        workflow_text,
+        rules,
+        input_type=context_pack.source_type,
+        classifier_mode=classifier_mode,
+        llm_classifier=LLMRiskClassifier(),
+        strict=strict,
+    )
+
+    result = {
+        "tool_name": tool_name,
         "context_pack": context_pack.to_dict(),
         "analysis": _analysis_to_dict(workflow.analysis),
         "decision": _decision_to_dict(workflow.decision),
         "regression_pack": workflow.regression_pack,
         "report": workflow.report,
         "pr_comment": workflow.pr_comment,
-        "audit_steps": workflow.audit_steps,
+        "audit_steps": audit_prefix + workflow.audit_steps,
     }
+    if business_risk:
+        result["business_risk"] = business_risk.to_dict()
+        result["business_risk_report"] = generate_business_risk_report(business_risk)
+    return result
 
 
 def analyze_prd_tool(tool_input: AnalyzePrdInput) -> Dict[str, Any]:
-    rules = load_gate_rules(str(DEFAULT_RULES_PATH))
     context_pack = build_context_pack(
         tool_input.prd_text,
         source_type="prd",
         title=tool_input.title,
         business_domain=tool_input.business_domain,
     )
-    business_risk = analyze_business_risk(context_pack)
-    business_risk_context = business_findings_to_change_text(business_risk)
-    workflow_text = context_pack.to_analysis_text()
-    if business_risk_context:
-        workflow_text = f"{workflow_text}\n\n{business_risk_context}"
-
-    workflow = run_agent_workflow(
-        workflow_text,
-        rules,
-        input_type="prd",
+    return _run_change_workflow(
+        raw_text=tool_input.prd_text,
+        context_pack=context_pack,
         classifier_mode=tool_input.classifier_mode,
-        llm_classifier=LLMRiskClassifier(),
         strict=tool_input.strict,
+        tool_name="analyze_prd",
     )
-
-    return {
-        "tool_name": "analyze_prd",
-        "context_pack": context_pack.to_dict(),
-        "business_risk": business_risk.to_dict(),
-        "analysis": _analysis_to_dict(workflow.analysis),
-        "decision": _decision_to_dict(workflow.decision),
-        "regression_pack": workflow.regression_pack,
-        "business_risk_report": generate_business_risk_report(business_risk),
-        "report": workflow.report,
-        "pr_comment": workflow.pr_comment,
-        "audit_steps": ["build_context_pack", "analyze_business_risk"] + workflow.audit_steps,
-    }
 
 
 def generate_regression_pack_tool(tool_input: RegressionPackInput) -> Dict[str, Any]:
@@ -269,6 +280,36 @@ def _analysis_to_dict(result: GateAnalysisResult) -> Dict[str, Any]:
                 "rules_matched": list(result.trace.rules_matched),
                 "execution_time_ms": result.trace.execution_time_ms,
                 "timestamp": result.trace.timestamp,
+                "match_traces": [
+                    {
+                        "rule_id": match_trace.rule_id,
+                        "rule_name": match_trace.rule_name,
+                        "rule_version": match_trace.rule_version,
+                        "line_numbers": list(match_trace.line_numbers),
+                        "matched_keywords": list(match_trace.matched_keywords),
+                        "keyword_locations": {
+                            keyword: list(line_numbers)
+                            for keyword, line_numbers in match_trace.keyword_locations.items()
+                        },
+                        "negative_keywords_matched": list(match_trace.negative_keywords_matched),
+                        "calculation_steps": list(match_trace.calculation_steps),
+                        "timestamp": match_trace.timestamp,
+                    }
+                    for match_trace in result.trace.match_traces
+                ],
+                "score_trace": (
+                    {
+                        "raw_score": result.trace.score_trace.raw_score,
+                        "final_score": result.trace.score_trace.final_score,
+                        "level_before_adjustment": result.trace.score_trace.level_before_adjustment,
+                        "level_after_adjustment": result.trace.score_trace.level_after_adjustment,
+                        "adjustment_reason": result.trace.score_trace.adjustment_reason,
+                        "calculation_formula": result.trace.score_trace.calculation_formula,
+                        "dimension_breakdown": dict(result.trace.score_trace.dimension_breakdown),
+                    }
+                    if result.trace.score_trace
+                    else None
+                ),
             }
             if result.trace
             else None

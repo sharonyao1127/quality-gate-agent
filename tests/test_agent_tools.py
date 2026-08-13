@@ -41,15 +41,46 @@ def test_run_agent_tool_analyzes_prd_business_risk():
         "analyze_prd",
         {
             "prd_text": "Launch provider callback for payment status. Retry is still being discussed.",
-            "business_domain": "payment",
         },
     )
 
     finding_ids = {finding["id"] for finding in result["business_risk"]["findings"]}
     assert result["tool_name"] == "analyze_prd"
     assert result["context_pack"]["source_type"] == "prd"
+    assert result["context_pack"]["business_domain"] == "payment"
     assert "async_callback_gap" in finding_ids
+    assert "payment_reconciliation_gap" in finding_ids
     assert "business_risk_report" in result
+
+
+def test_run_agent_tool_routes_requirement_like_change_through_business_risk():
+    result = run_agent_tool(
+        "analyze_change",
+        {
+            "change_text": "Launch provider callback for payment status. Retry is still being discussed.",
+            "input_type": "prd",
+        },
+    )
+
+    assert result["context_pack"]["business_domain"] == "payment"
+    assert "business_risk" in result
+    assert result["audit_steps"][:2] == ["build_context_pack", "analyze_business_risk"]
+
+
+def test_run_agent_tool_serializes_trace_evidence_details():
+    result = run_agent_tool(
+        "analyze_change",
+        {
+            "change_text": "Provider callback timeout may update transaction status.",
+            "input_type": "api_change",
+            "business_domain": "payment",
+        },
+    )
+
+    trace = result["analysis"]["trace"]
+    assert trace["match_traces"]
+    assert trace["match_traces"][0]["keyword_locations"]
+    assert trace["score_trace"]["final_score"] > 0
 
 
 def test_run_agent_tool_generates_regression_pack():
