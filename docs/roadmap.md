@@ -20,6 +20,7 @@
 - [x] Output schema validation
 - [x] Semantic constraints for risk levels, score ranges, and dimension keys
 - [x] Idempotency tests for deterministic output
+- [x] Agent decision evals for gate action, review routing, and high-risk recall
 - [x] Confidence scorer for low-certainty findings
 - [x] Keyword location traceability back to input lines
 - [x] Agent workflow orchestration

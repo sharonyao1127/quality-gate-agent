@@ -30,6 +30,8 @@ class EvalSample:
     input_text: str
     expected_findings: List[ExpectedFinding]
     expected_overall_level: str
+    expected_gate_action: str = ""
+    expected_review_required: Optional[bool] = None
 
 
 @dataclass
@@ -51,6 +53,27 @@ class EvalMetrics:
     classifier_mode: str
 
 
+@dataclass
+class DecisionEvalFailure:
+    sample_name: str
+    expected_action: str
+    actual_action: str
+    expected_review_required: Optional[bool]
+    actual_review_required: bool
+    expected_overall_level: str
+    actual_overall_level: str
+
+
+@dataclass
+class DecisionEvalMetrics:
+    decision_accuracy: float
+    review_routing_accuracy: float
+    high_risk_recall: float
+    samples_evaluated: int
+    classifier_mode: str
+    failures: List[DecisionEvalFailure] = field(default_factory=list)
+
+
 def load_eval_dataset(path: Path) -> List[EvalSample]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     samples: List[EvalSample] = []
@@ -69,6 +92,8 @@ def load_eval_dataset(path: Path) -> List[EvalSample]:
                 input_text=item["input"],
                 expected_findings=findings,
                 expected_overall_level=item["expected_overall_level"],
+                expected_gate_action=item.get("expected_gate_action", ""),
+                expected_review_required=item.get("expected_review_required"),
             )
         )
     return samples
@@ -166,6 +191,111 @@ def compare_classifiers(
     }
 
 
+def evaluate_gate_decisions(
+    samples: List[EvalSample],
+    rules: List[Dict[str, object]],
+    classifier_mode: str = "keyword",
+    llm_classifier: Optional[LLMRiskClassifier] = None,
+) -> DecisionEvalMetrics:
+    from src.agent_workflow import run_agent_workflow
+
+    correct_decisions = 0
+    review_expectations = 0
+    correct_review_routing = 0
+    expected_high_risk = 0
+    recalled_high_risk = 0
+    failures: List[DecisionEvalFailure] = []
+
+    for sample in samples:
+        workflow = run_agent_workflow(
+            sample.input_text,
+            rules,
+            input_type="eval",
+            classifier_mode=classifier_mode,
+            llm_classifier=llm_classifier,
+        )
+        expected_action = sample.expected_gate_action or _default_expected_action(sample.expected_overall_level)
+        actual_action = workflow.decision.action
+        decision_correct = actual_action == expected_action
+        level_correct = workflow.analysis.overall_risk_level == sample.expected_overall_level
+
+        if decision_correct and level_correct:
+            correct_decisions += 1
+
+        if sample.expected_review_required is not None:
+            review_expectations += 1
+            if workflow.decision.review_required == sample.expected_review_required:
+                correct_review_routing += 1
+
+        if sample.expected_overall_level == "high":
+            expected_high_risk += 1
+            if workflow.analysis.overall_risk_level == "high":
+                recalled_high_risk += 1
+
+        review_mismatch = (
+            sample.expected_review_required is not None
+            and workflow.decision.review_required != sample.expected_review_required
+        )
+        if not decision_correct or not level_correct or review_mismatch:
+            failures.append(
+                DecisionEvalFailure(
+                    sample_name=sample.name,
+                    expected_action=expected_action,
+                    actual_action=actual_action,
+                    expected_review_required=sample.expected_review_required,
+                    actual_review_required=workflow.decision.review_required,
+                    expected_overall_level=sample.expected_overall_level,
+                    actual_overall_level=workflow.analysis.overall_risk_level,
+                )
+            )
+
+    return DecisionEvalMetrics(
+        decision_accuracy=correct_decisions / len(samples) if samples else 0.0,
+        review_routing_accuracy=(
+            correct_review_routing / review_expectations if review_expectations else 0.0
+        ),
+        high_risk_recall=recalled_high_risk / expected_high_risk if expected_high_risk else 0.0,
+        samples_evaluated=len(samples),
+        classifier_mode=classifier_mode,
+        failures=failures,
+    )
+
+
+def generate_decision_eval_report(metrics: DecisionEvalMetrics) -> str:
+    lines = [
+        "# Agent Decision Evaluation",
+        "",
+        "This report evaluates final gate decisions, not just raw risk classification.",
+        "",
+        "## Metrics",
+        "",
+        "| Classifier | Decision Accuracy | Review Routing Accuracy | High-Risk Recall | Samples |",
+        "|---|---:|---:|---:|---:|",
+        (
+            f"| {metrics.classifier_mode} | {metrics.decision_accuracy:.2%} | "
+            f"{metrics.review_routing_accuracy:.2%} | {metrics.high_risk_recall:.2%} | "
+            f"{metrics.samples_evaluated} |"
+        ),
+        "",
+        "## Failures",
+        "",
+    ]
+
+    if not metrics.failures:
+        lines.append("- No decision failures detected.")
+    else:
+        lines.append("| Sample | Expected Action | Actual Action | Expected Review | Actual Review | Level |")
+        lines.append("|---|---|---|---|---|---|")
+        for failure in metrics.failures:
+            lines.append(
+                f"| {failure.sample_name} | {failure.expected_action} | {failure.actual_action} | "
+                f"{failure.expected_review_required} | {failure.actual_review_required} | "
+                f"{failure.expected_overall_level}->{failure.actual_overall_level} |"
+            )
+
+    return "\n".join(lines)
+
+
 def generate_eval_report(metrics: Dict[str, EvalMetrics]) -> str:
     """Generate a Markdown evaluation report comparing classifiers."""
     lines = [
@@ -202,6 +332,14 @@ def generate_eval_report(metrics: Dict[str, EvalMetrics]) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _default_expected_action(expected_overall_level: str) -> str:
+    if expected_overall_level == "high":
+        return "human_review_required"
+    if expected_overall_level == "medium":
+        return "targeted_regression"
+    return "pass"
 
 
 def main() -> None:

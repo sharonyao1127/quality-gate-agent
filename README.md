@@ -52,6 +52,7 @@ Quality Gate Agent provides a lightweight workflow:
 ### AI-Native Layer
 - **Hybrid risk classifier**: keyword rules + OpenAI-compatible LLM classification with structured output.
 - **Classifier evaluation framework**: labeled dataset, per-rule precision/recall/F1, and macro-F1 comparison across keyword / hybrid / LLM modes.
+- **Agent decision evals**: validates final gate action, human-review routing, and high-risk recall.
 - **LLM-as-a-Judge**: scores the helpfulness, actionability, and accuracy of generated reports using a separate LLM judge.
 - **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
 - **Agent tool interface**: framework-agnostic Pydantic schemas and dispatcher for tool-based agent integration.
@@ -200,6 +201,8 @@ Run with evaluation and LLM-as-a-Judge:
 python3 -m src.main --eval
 ```
 
+This generates classifier evals, decision evals, and judge output.
+
 Use the agent tool interface from Python:
 
 ```python
@@ -314,6 +317,7 @@ See [Roadmap](docs/roadmap.md).
 ## More Documentation
 
 - [Architecture](docs/architecture.md)
+- [Agent Decision Evals](docs/agent-decision-evals.md)
 - [Demo Script](docs/demo-script.md)
 - [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
 - [Agent Tool Interface](docs/agent-tool-interface.md)

@@ -19,6 +19,8 @@ from src.llm_risk_classifier import LLMRiskClassifier
 from src.llm_judge import LLMJudge, MockLLMJudge
 from src.eval_framework import (
     compare_classifiers,
+    evaluate_gate_decisions,
+    generate_decision_eval_report,
     generate_eval_report,
     load_eval_dataset,
 )
@@ -208,6 +210,42 @@ def main() -> None:
         eval_report = generate_eval_report(classifier_metrics)
         (OUTPUT_DIR / "classifier_eval_report.md").write_text(eval_report, encoding="utf-8")
         print(f"- {OUTPUT_DIR / 'classifier_eval_report.md'}")
+
+        decision_metrics = evaluate_gate_decisions(
+            eval_dataset,
+            rules,
+            classifier_mode=args.classifier,
+            llm_classifier=llm_classifier,
+        )
+        decision_eval_report = generate_decision_eval_report(decision_metrics)
+        (OUTPUT_DIR / "decision_eval_report.md").write_text(decision_eval_report, encoding="utf-8")
+        (OUTPUT_DIR / "decision_eval_result.json").write_text(
+            json.dumps(
+                {
+                    "classifier_mode": decision_metrics.classifier_mode,
+                    "decision_accuracy": decision_metrics.decision_accuracy,
+                    "review_routing_accuracy": decision_metrics.review_routing_accuracy,
+                    "high_risk_recall": decision_metrics.high_risk_recall,
+                    "samples_evaluated": decision_metrics.samples_evaluated,
+                    "failures": [
+                        {
+                            "sample_name": failure.sample_name,
+                            "expected_action": failure.expected_action,
+                            "actual_action": failure.actual_action,
+                            "expected_review_required": failure.expected_review_required,
+                            "actual_review_required": failure.actual_review_required,
+                            "expected_overall_level": failure.expected_overall_level,
+                            "actual_overall_level": failure.actual_overall_level,
+                        }
+                        for failure in decision_metrics.failures
+                    ],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"- {OUTPUT_DIR / 'decision_eval_report.md'}")
+        print(f"- {OUTPUT_DIR / 'decision_eval_result.json'}")
 
         judge = LLMJudge() if LLMJudge().is_available() else MockLLMJudge()
         judge_score, judge_usage = judge.judge_report(workflow_change_text, report)
