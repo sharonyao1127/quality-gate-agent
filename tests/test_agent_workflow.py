@@ -1,4 +1,6 @@
-from src.agent_workflow import run_agent_workflow
+import pytest
+
+from src.agent_workflow import AgentWorkflowError, run_agent_workflow
 
 
 def test_run_agent_workflow_returns_decision_outputs_and_audit_steps():
@@ -45,3 +47,27 @@ def test_run_agent_workflow_returns_decision_outputs_and_audit_steps():
         "decide_gate:human_review_required",
         "generate_outputs",
     ]
+
+
+def test_run_agent_workflow_preserves_trace_when_step_raises():
+    rules = [
+        {
+            "id": "bad_dimension",
+            "name": "Bad Dimension",
+            "keywords": ["callback"],
+            "dimensions": {"unknown_dimension": 3},
+        }
+    ]
+
+    with pytest.raises(AgentWorkflowError) as exc_info:
+        run_agent_workflow("callback", rules, input_type="api_change")
+
+    error = exc_info.value
+    assert error.run_trace.status == "error"
+    assert error.run_trace.completed_at is not None
+    assert [span.name for span in error.run_trace.spans] == [
+        "classify_risk",
+        "validate_schema",
+    ]
+    assert error.run_trace.spans[-1].status == "error"
+    assert "ValidationError" in error.run_trace.spans[-1].error
