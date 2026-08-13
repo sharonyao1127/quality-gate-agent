@@ -23,9 +23,11 @@ def generate_pr_comment(result: GateAnalysisResult) -> str:
         lines.append("### Why this was flagged")
         lines.append("")
         for match in result.matches:
-            lines.append(
-                f"- **{match.name}**: matched `{', '.join(match.matched_keywords)}`; score {match.risk_score}/15"
-            )
+            source_tag = f" ({match.source})" if match.source != "keyword" else ""
+            line = f"- **{match.name}{source_tag}**: matched `{', '.join(match.matched_keywords)}`; score {match.risk_score}/15"
+            if match.reasoning:
+                line += f" — {match.reasoning}"
+            lines.append(line)
         lines.append("")
 
     lines.append("### Potentially impacted areas")

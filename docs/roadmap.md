@@ -22,7 +22,9 @@
 - [x] Idempotency tests for deterministic output
 - [x] Confidence scorer for low-certainty findings
 - [x] Keyword location traceability back to input lines
-- [ ] Human review gate for ambiguous risk decisions
+- [x] Agent workflow orchestration
+- [x] Gate decision layer for pass, targeted regression, human review, and strict failure
+- [x] Human review gate for ambiguous risk decisions
 - [x] GitHub Actions workflow for tests and report artifacts
 
 ## v0.4 Candidate

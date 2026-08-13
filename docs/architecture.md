@@ -1,20 +1,23 @@
 # Architecture
 
-Quality Gate Agent is a reference implementation for explainable release-risk review. It keeps the core decision path deterministic and auditable, while leaving room for future AI-assisted summarization and workflow integration.
+Quality Gate Agent is a reference implementation for explainable release-risk review and agent reliability engineering. It keeps the core decision path deterministic and auditable while allowing optional LLM classification and judge evaluation.
 
 ## Current Architecture
 
 ```text
-Git Diff / API Note / OpenAPI Summary
+Git Diff / API Note / OpenAPI Summary / GitHub PR Diff
         |
         v
-Change Loader
+Agent Workflow Orchestrator
+        |
+        +--> Load Change Context
+        +--> Classify Risk
+        +--> Validate Schema
+        +--> Decide Gate
+        +--> Generate Outputs
         |
         v
-Structured Risk Rules
-        |
-        v
-Gate Analyzer
+Gate Analyzer + Optional LLM Classifier
         |
         +--> Matched Rules
         +--> Risk Score
@@ -29,6 +32,14 @@ Result Validators
         +--> Idempotency Coverage
         |
         v
+Gate Decision
+        |
+        +--> pass
+        +--> targeted_regression
+        +--> human_review_required
+        +--> fail
+        |
+        v
 Outputs
         |
         +--> Quality Gate Report
@@ -36,12 +47,15 @@ Outputs
         +--> Traceability Report
         +--> Regression Pack
         +--> Eval Summary
+        +--> Audit Steps
 ```
 
 ## Core Modules
 
 - `src/change_loader.py`: loads sanitized example inputs for local runs.
+- `src/agent_workflow.py`: orchestrates the analyze, validate, decide, and generate workflow.
 - `src/gate_analyzer.py`: matches change text against risk rules and produces risk findings.
+- `src/gate_decision.py`: maps risk and confidence into an explicit gate action.
 - `src/risk_scoring.py`: calculates risk levels and score thresholds.
 - `src/confidence_scorer.py`: estimates confidence and routes low-certainty findings to human review.
 - `src/traceability.py`: records rule matches, score calculations, keyword line locations, and exportable traces.
@@ -55,6 +69,7 @@ Outputs
 
 - Explainability first: every risk output should connect back to matched rules, keywords, scores, and input lines.
 - Deterministic core: structured rules and schema validation keep the main gate stable and testable.
+- Explicit decisions: final gate actions are represented as structured data, not hidden inside report prose.
 - Human review friendly: confidence assessment marks findings that need manual inspection.
 - Open-core boundary: public examples demonstrate the workflow; production rule packs and adapters stay private.
 

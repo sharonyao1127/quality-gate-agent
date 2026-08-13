@@ -1,0 +1,111 @@
+samples:
+  - name: idempotency_retry_balance
+    input: |
+      Added retry logic for payment requests. When a request fails, the client
+      resubmits with the same request_id. The system must deduct balance only
+      once and create a single transaction record.
+    expected_overall_level: high
+    expected_findings:
+      - rule_id: idempotency_risk
+        risk_level: high
+        impacted_areas:
+          - idempotency
+          - balance consistency
+          - transaction record uniqueness
+
+  - name: async_provider_callback
+    input: |
+      Payment provider can send a delayed callback. The transaction stays in
+      pending_confirmation until the callback_required event arrives. We need to
+      handle timeout, duplicated callback, and final state overwrite.
+    expected_overall_level: high
+    expected_findings:
+      - rule_id: async_callback_risk
+        risk_level: high
+        impacted_areas:
+          - external provider callback
+          - transaction final state
+          - timeout handling
+          - reconciliation
+
+  - name: status_display_change
+    input: |
+      Backend status display logic added a new pending value. Frontend display
+      logic should handle the new user-facing state and transition animations.
+    expected_overall_level: medium
+    expected_findings:
+      - rule_id: status_consistency_risk
+        risk_level: medium
+        impacted_areas:
+          - frontend/backend consistency
+          - user-facing status display
+
+  - name: openapi_contract_change
+    input: |
+      OpenAPI spec updated: added a required response field and a new enum value
+      for provider_request_id. Existing clients must be able to parse the new
+      schema without breaking.
+    expected_overall_level: medium
+    expected_findings:
+      - rule_id: contract_compatibility_risk
+        risk_level: medium
+        impacted_areas:
+          - API contract compatibility
+          - consumer integration
+          - backward compatibility
+
+  - name: reconciliation_mismatch
+    input: |
+      New reconciliation job detects mismatches between provider_response and our
+      transaction records. Handles missing provider confirmation and generates a
+      report for long-pending transactions.
+    expected_overall_level: medium
+    expected_findings:
+      - rule_id: reconciliation_risk
+        risk_level: medium
+        impacted_areas:
+          - reconciliation
+          - provider confirmation
+          - transaction consistency
+
+  - name: copywriting_only
+    input: |
+      Update help text and wording on the guide page. This is a copywriting-only
+      change for user guidance. No business behavior is changed.
+    expected_overall_level: low
+    expected_findings: []
+
+  - name: idempotency_and_callback
+    input: |
+      Payment flow now retries on timeout and waits for the provider callback.
+      Request_id is used to deduplicate. Balance must be deducted once and the
+      final state must not be overwritten by a delayed callback.
+    expected_overall_level: high
+    expected_findings:
+      - rule_id: idempotency_risk
+        risk_level: high
+        impacted_areas:
+          - idempotency
+          - balance consistency
+      - rule_id: async_callback_risk
+        risk_level: high
+        impacted_areas:
+          - external provider callback
+          - transaction final state
+
+  - name: status_and_contract
+    input: |
+      Added a new required status enum value to the OpenAPI contract. The frontend
+      must display the new state and older clients must remain compatible.
+    expected_overall_level: medium
+    expected_findings:
+      - rule_id: status_consistency_risk
+        risk_level: medium
+        impacted_areas:
+          - frontend/backend consistency
+          - user-facing status display
+      - rule_id: contract_compatibility_risk
+        risk_level: medium
+        impacted_areas:
+          - API contract compatibility
+          - backward compatibility
