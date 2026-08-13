@@ -30,6 +30,14 @@ def test_run_agent_workflow_returns_decision_outputs_and_audit_steps():
     assert workflow.report.startswith("# Quality Gate Report")
     assert "Quality Gate Result" in workflow.pr_comment
     assert workflow.regression_pack["risk_level"] == "high"
+    assert workflow.run_trace.status == "ok"
+    assert workflow.run_trace.input_type == "api_change"
+    assert [span.name for span in workflow.run_trace.spans] == [
+        "classify_risk",
+        "validate_schema",
+        "decide_gate",
+        "generate_outputs",
+    ]
     assert workflow.audit_steps == [
         "load_change_context",
         "classify_risk:keyword",

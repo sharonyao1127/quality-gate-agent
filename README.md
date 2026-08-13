@@ -56,6 +56,7 @@ Quality Gate Agent provides a lightweight workflow:
 - **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
 - **Agent tool interface**: framework-agnostic Pydantic schemas and dispatcher for tool-based agent integration.
 - **Gate decision layer**: maps risk and confidence into `pass`, `targeted_regression`, `human_review_required`, or `fail`.
+- **Agent run observability**: captures run ID, step spans, durations, status, and decision metadata for audit and debugging.
 - Graceful offline fallback: when no API key is configured, the system runs the keyword classifier and uses a deterministic mock judge for tests and demos.
 
 ## Demo Flow
@@ -74,6 +75,7 @@ Gate Analyzer + Risk Rules + Business Risk Analyzer
         +--> Impacted Areas
         +--> Regression Scope
         +--> Traceability Report
+        +--> Agent Run Trace
         +--> Quality Gate Report
         +--> PR Comment
         +--> Eval Summary
@@ -288,6 +290,8 @@ Public metrics and deterministic-output expectations are tracked in [Project Met
 
 The repository also includes a GitHub Actions workflow that runs tests, generates quality gate outputs, and uploads generated reports as artifacts.
 
+Generated local runs include `outputs/agent_run_trace.json` and `outputs/agent_run_trace.md`, which record the workflow spans, durations, status, and decision metadata for audit/debugging.
+
 ## Case Study
 
 See [Payment Callback Risk Review](docs/case-study-payment-risk.md) for a sanitized example of how the gate supports payment release risk review.
@@ -330,6 +334,7 @@ The project is also a deliberate portfolio piece for the AI quality / agent reli
 - Labeled evaluation datasets and classifier metrics
 - LLM-as-a-Judge output quality scoring
 - CI/CD integration and traceability
+- Agent run tracing and audit-friendly workflow metadata
 - Pydantic schema validation and deterministic fallbacks
 
 The core design principle is simple: use AI-era tooling to improve engineering speed, but keep the final risk signal explainable, testable, and auditable.
