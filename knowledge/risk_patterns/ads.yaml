@@ -1,0 +1,38 @@
+patterns:
+  - id: ads_retrieval_ranking_regression
+    domain: ads
+    name: Ads retrieval and ranking regression
+    signals:
+      - retrieval
+      - ranking
+      - campaign
+      - creative
+      - bid
+      - traffic
+    risks:
+      - Retrieval changes can silently reduce eligible ad candidates.
+      - Ranking changes can shift traffic allocation or revenue.
+      - Creative or campaign filters can affect customer-visible delivery.
+    recommended_checks:
+      - Compare candidate counts before and after the change.
+      - Run offline ranking evaluation and traffic shadow checks.
+      - Monitor revenue, fill rate, CTR, and customer complaint signals.
+
+  - id: ads_contract_budget_pacing
+    domain: ads
+    name: Ads budget pacing and contract compatibility
+    signals:
+      - budget
+      - pacing
+      - contract
+      - schema
+      - advertiser
+      - quota
+    risks:
+      - Budget pacing changes can overspend or underspend advertiser budgets.
+      - Contract drift can break advertiser or reporting integrations.
+      - Quota changes can create unexpected throttling behavior.
+    recommended_checks:
+      - Verify budget pacing at hourly and daily boundaries.
+      - Run compatibility checks for advertiser-facing API fields.
+      - Monitor spend drift, throttling, and report consistency.

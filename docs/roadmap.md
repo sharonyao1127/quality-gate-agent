@@ -27,6 +27,7 @@
 - [x] Human review gate for ambiguous risk decisions
 - [x] Change Context Pack for PRD/business requirement inputs
 - [x] Business risk analyzer for requirements, callback gaps, reconciliation, rollout, and ownership
+- [x] Knowledge Store Lite for reusable payment, ads, and logistics risk patterns
 - [x] GitHub Actions workflow for tests and report artifacts
 
 ## v0.4 Candidate
@@ -34,7 +35,7 @@
 - [ ] Add automated OpenAPI diff parser
 - [ ] Add GitHub PR comment posting workflow
 - [ ] Add module ownership mapping
-- [ ] Add local knowledge store for reusable risk patterns
+- [ ] Add vector/RAG retrieval for private historical risk patterns
 - [ ] Add LLM-based change summary
 - [ ] Add MCP/tool interface for agent workflow integration
 - [ ] Generate regression checklist by module

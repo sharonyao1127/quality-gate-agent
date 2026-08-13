@@ -1,0 +1,38 @@
+patterns:
+  - id: logistics_status_transition_consistency
+    domain: logistics
+    name: Logistics status transition consistency
+    signals:
+      - shipment
+      - parcel
+      - station
+      - status
+      - route
+      - delivery
+    risks:
+      - Out-of-order logistics events can regress parcel status.
+      - Station or route changes can create inconsistent user-facing tracking.
+      - Retry events can duplicate notifications or inventory movements.
+    recommended_checks:
+      - Verify allowed status transitions and terminal states.
+      - Replay out-of-order station and route events.
+      - Check user-facing tracking display for each status.
+
+  - id: logistics_inventory_station_sync
+    domain: logistics
+    name: Logistics inventory and station sync risk
+    signals:
+      - inventory
+      - warehouse
+      - station
+      - pickup
+      - handoff
+      - sync
+    risks:
+      - Station inventory can diverge from central records.
+      - Pickup and handoff flows can double-count or lose parcels.
+      - Async sync failures can hide operational incidents.
+    recommended_checks:
+      - Compare station inventory, warehouse inventory, and parcel lifecycle records.
+      - Simulate sync delay, duplicate handoff, and pickup cancellation.
+      - Add alerting for inventory mismatch and long-unsynced station records.

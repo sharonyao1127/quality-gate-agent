@@ -55,6 +55,7 @@ Quality Gate Agent provides a lightweight workflow:
 - **LLM-as-a-Judge**: scores the helpfulness, actionability, and accuracy of generated reports using a separate LLM judge.
 - **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
 - **Gate decision layer**: maps risk and confidence into `pass`, `targeted_regression`, `human_review_required`, or `fail`.
+- **Knowledge Store Lite**: retrieves reusable public risk patterns for payment, ads, and logistics changes.
 - Graceful offline fallback: when no API key is configured, the system runs the keyword classifier and uses a deterministic mock judge for tests and demos.
 
 ## Demo Flow
@@ -70,6 +71,7 @@ Gate Analyzer + Risk Rules + Business Risk Analyzer
         |
         +--> Risk Score
         +--> Business Risk Review
+        +--> Retrieved Risk Knowledge
         +--> Impacted Areas
         +--> Regression Scope
         +--> Traceability Report
@@ -243,6 +245,7 @@ Then open `http://127.0.0.1:8000`.
 ```text
 examples/                 Sanitized input examples
 examples/prd/             Sanitized PRD/business requirement examples
+knowledge/risk_patterns/  Public reusable risk knowledge patterns
 risk_rules/               Public demo rule set
 eval_cases/               Expected risk behavior cases
 src/                      Analyzer, scoring, reports, traceability, validation
@@ -299,6 +302,7 @@ See [Roadmap](docs/roadmap.md).
 - [Architecture](docs/architecture.md)
 - [Demo Script](docs/demo-script.md)
 - [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
+- [Knowledge Store Lite](docs/knowledge-store.md)
 - [Open Source Boundary](docs/open-source-boundary.md)
 
 ## Why This Project Exists

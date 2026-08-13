@@ -12,6 +12,7 @@ Agent Workflow Orchestrator
         |
         +--> Load Change Context
         +--> Build Context Pack
+        +--> Retrieve Risk Knowledge
         +--> Review Business Risk
         +--> Classify Risk
         +--> Validate Schema
@@ -56,6 +57,7 @@ Outputs
 
 - `src/change_loader.py`: loads sanitized example inputs for local runs.
 - `src/context_pack.py`: normalizes change text, PRDs, and business requirements into a structured context pack.
+- `src/knowledge_store.py`: loads and retrieves reusable local risk patterns for domain-aware context.
 - `src/business_risk_analyzer.py`: flags PRD and business-risk gaps such as missing acceptance criteria, callback ambiguity, reconciliation gaps, rollout risk, and ownership gaps.
 - `src/agent_workflow.py`: orchestrates the analyze, validate, decide, and generate workflow.
 - `src/gate_analyzer.py`: matches change text against risk rules and produces risk findings.
@@ -73,6 +75,7 @@ Outputs
 
 - Explainability first: every risk output should connect back to matched rules, keywords, scores, and input lines.
 - Deterministic core: structured rules and schema validation keep the main gate stable and testable.
+- Knowledge reuse: local risk patterns make historical domain expertise explicit without exposing private customer data.
 - Explicit decisions: final gate actions are represented as structured data, not hidden inside report prose.
 - Human review friendly: confidence assessment marks findings that need manual inspection.
 - Context-aware inputs: requirements and PRDs are reviewed before implementation, not only after code exists.
@@ -85,5 +88,5 @@ Outputs
 - Module ownership mapping.
 - OpenAPI diff automation.
 - Optional LLM summarization with structured output validation.
-- Knowledge-store retrieval for historical risk patterns and incident-derived checks.
+- Vector/RAG retrieval for private historical risk patterns and incident-derived checks.
 - MCP/tool interface for agent workflow integration.
