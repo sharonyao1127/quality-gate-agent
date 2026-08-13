@@ -25,6 +25,8 @@
 - [x] Agent workflow orchestration
 - [x] Gate decision layer for pass, targeted regression, human review, and strict failure
 - [x] Human review gate for ambiguous risk decisions
+- [x] Change Context Pack for PRD/business requirement inputs
+- [x] Business risk analyzer for requirements, callback gaps, reconciliation, rollout, and ownership
 - [x] GitHub Actions workflow for tests and report artifacts
 
 ## v0.4 Candidate
@@ -32,7 +34,9 @@
 - [ ] Add automated OpenAPI diff parser
 - [ ] Add GitHub PR comment posting workflow
 - [ ] Add module ownership mapping
+- [ ] Add local knowledge store for reusable risk patterns
 - [ ] Add LLM-based change summary
+- [ ] Add MCP/tool interface for agent workflow integration
 - [ ] Generate regression checklist by module
 - [ ] Add CI failure threshold for high-risk changes
 - [ ] Add dashboard-style HTML report

@@ -1,8 +1,8 @@
 # Quality Gate Agent
 
-AI-assisted quality gate for risky code, API, and OpenAPI changes.
+AI-assisted quality gate for risky code, API, OpenAPI, and PRD/business requirement changes.
 
-This project turns change context into explainable risk scores, regression recommendations, traceable evidence, and PR-ready review comments. It is designed for complex B2B systems where a small change can affect payment reliability, ledger consistency, async callbacks, status flows, reconciliation, or customer-facing behavior.
+This project turns change context into explainable risk scores, regression recommendations, traceable evidence, business-risk findings, and PR-ready review comments. It is designed for complex B2B systems where a small change can affect payment reliability, ledger consistency, async callbacks, status flows, reconciliation, rollout safety, or customer-facing behavior.
 
 This repository also serves as a public reference implementation for **AI Quality / Agent Reliability / Evaluation Engineering** work. It demonstrates how to combine deterministic rules, structured LLM classification, labeled evaluation datasets, and LLM-as-a-Judge scoring into a single auditable quality gate.
 
@@ -14,13 +14,14 @@ Engineering teams often review risky changes with limited context. A diff may me
 
 Quality Gate Agent provides a lightweight workflow:
 
-1. Load a git diff, API change note, or OpenAPI change summary.
-2. Match the change against structured risk rules.
-3. Calculate an explainable risk score.
-4. Validate output shape and semantic constraints.
-5. Decide the gate action with risk and confidence signals.
-6. Generate impacted areas, regression scope, reports, and PR comments.
-7. Preserve traceability and audit steps for rule matches, model usage, and gate decisions.
+1. Load a git diff, API change note, OpenAPI change summary, PRD, or business requirement.
+2. Normalize the input into a structured change context pack.
+3. Match the change against code/API rules and business-risk rules.
+4. Calculate explainable risk scores.
+5. Validate output shape and semantic constraints.
+6. Decide the gate action with risk and confidence signals.
+7. Generate impacted areas, regression scope, reports, business-risk review, and PR comments.
+8. Preserve traceability and audit steps for rule matches, model usage, and gate decisions.
 
 ## Best-Fit Use Cases
 
@@ -34,6 +35,7 @@ Quality Gate Agent provides a lightweight workflow:
 
 ### Core Quality Gate
 - Structured YAML risk rules.
+- Change Context Pack for normalized diff, API, OpenAPI, PRD, and business requirement inputs.
 - Explainable risk scoring across business impact, data consistency, visibility, reversibility, and external dependency.
 - Negative keyword handling to reduce false positives.
 - Traceability report with input hash, matched rules, score calculation, and execution time.
@@ -43,6 +45,7 @@ Quality Gate Agent provides a lightweight workflow:
 - Confidence assessment for low-certainty findings and human review routing.
 - Markdown quality report and PR-ready comment output.
 - Regression pack generation.
+- Business-risk analyzer for PRD gaps, async callback ambiguity, payment reconciliation, state transitions, rollout safety, observability, and ownership.
 - Eval cases and pytest coverage.
 - Optional FastAPI web UI for local demos.
 
@@ -57,15 +60,16 @@ Quality Gate Agent provides a lightweight workflow:
 ## Demo Flow
 
 ```text
-Git Diff / API Change / OpenAPI Summary
+Git Diff / API Change / OpenAPI Summary / PRD
         |
         v
-Change Loader
+Change Loader + Context Pack
         |
         v
-Gate Analyzer + Risk Rules
+Gate Analyzer + Risk Rules + Business Risk Analyzer
         |
         +--> Risk Score
+        +--> Business Risk Review
         +--> Impacted Areas
         +--> Regression Scope
         +--> Traceability Report
@@ -195,6 +199,15 @@ Run with evaluation and LLM-as-a-Judge:
 python3 -m src.main --eval
 ```
 
+Analyze a PRD or business requirement:
+
+```bash
+python3 -m src.main \
+  --input examples/prd/payment_callback_prd.md \
+  --input-type prd \
+  --business-domain payment
+```
+
 Run in strict CI gate mode:
 
 ```bash
@@ -229,6 +242,7 @@ Then open `http://127.0.0.1:8000`.
 
 ```text
 examples/                 Sanitized input examples
+examples/prd/             Sanitized PRD/business requirement examples
 risk_rules/               Public demo rule set
 eval_cases/               Expected risk behavior cases
 src/                      Analyzer, scoring, reports, traceability, validation
