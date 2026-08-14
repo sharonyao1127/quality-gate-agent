@@ -33,6 +33,29 @@ def test_retrieve_risk_patterns_returns_empty_when_no_signal_matches():
     assert result.matched_patterns == []
 
 
+def test_retrieve_risk_patterns_does_not_match_domain_metadata_without_signals():
+    result = retrieve_risk_patterns(
+        "Title: Payment Copy Update\nBusiness Domain: payment\nRaw Context:\nUpdate FAQ copy.",
+        domain="payment",
+    )
+
+    assert result.matched_patterns == []
+
+
+def test_knowledge_retrieval_result_does_not_export_raw_query():
+    result = retrieve_risk_patterns(
+        "Title: Secret Payment PRD\nBusiness Domain: payment\nRaw Context:\nCustomer secret callback details",
+        domain="payment",
+    )
+
+    payload = result.to_dict()
+
+    assert "query" not in payload
+    assert "query_hash" in payload
+    assert "Customer secret" not in payload["query_preview"]
+    assert "Raw Context" not in payload["query_preview"]
+
+
 def test_generate_knowledge_context_and_report_are_actionable():
     result = retrieve_risk_patterns(
         "Ads retrieval ranking change can affect campaign traffic.",

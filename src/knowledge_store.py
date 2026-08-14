@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
+import hashlib
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -37,7 +38,8 @@ class KnowledgeRetrievalResult:
 
     def to_dict(self) -> Dict[str, object]:
         return {
-            "query": self.query,
+            "query_hash": hashlib.sha256(self.query.encode("utf-8")).hexdigest()[:16],
+            "query_preview": _safe_query_preview(self.query),
             "domain": self.domain,
             "matched_patterns": [pattern.to_dict() for pattern in self.matched_patterns],
         }
@@ -142,11 +144,13 @@ def _score_pattern(query_lower: str, pattern: RiskKnowledgePattern) -> int:
     for signal in pattern.signals:
         if signal.lower() in query_lower:
             score += 3
-    for token in _tokens(pattern.name):
-        if token in query_lower:
-            score += 1
     return score
 
 
-def _tokens(text: str) -> Iterable[str]:
-    return [token for token in text.lower().replace("/", " ").split() if len(token) > 3]
+def _safe_query_preview(query: str, max_length: int = 160) -> str:
+    metadata = query.split("Raw Context:", maxsplit=1)[0].strip()
+    preview_source = metadata or query
+    compact = " ".join(preview_source.split())
+    if len(compact) <= max_length:
+        return compact
+    return f"{compact[:max_length].rstrip()}..."
