@@ -5,6 +5,7 @@ import yaml
 
 from src.change_loader import load_change_text
 from src.agent_workflow import run_agent_workflow
+from src.agent_observability import generate_agent_run_report
 from src.business_risk_analyzer import (
     analyze_business_risk,
     business_findings_to_change_text,
@@ -145,6 +146,7 @@ def main() -> None:
         "business_risk": business_risk.to_dict() if business_risk else None,
         "agent_workflow": {
             "audit_steps": workflow.audit_steps,
+            "run_trace": workflow.run_trace.to_dict(),
             "decision": {
                 "action": workflow.decision.action,
                 "review_required": workflow.decision.review_required,
@@ -178,6 +180,14 @@ def main() -> None:
 
     (OUTPUT_DIR / "quality_gate_report.md").write_text(report, encoding="utf-8")
     (OUTPUT_DIR / "pr_comment.md").write_text(pr_comment, encoding="utf-8")
+    (OUTPUT_DIR / "agent_run_trace.md").write_text(
+        generate_agent_run_report(workflow.run_trace),
+        encoding="utf-8",
+    )
+    (OUTPUT_DIR / "agent_run_trace.json").write_text(
+        json.dumps(workflow.run_trace.to_dict(), indent=2),
+        encoding="utf-8",
+    )
     (OUTPUT_DIR / "eval_summary.md").write_text(eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "ai_pr_review_eval_summary.md").write_text(ai_eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "regression_pack.yaml").write_text(yaml.safe_dump(regression_pack, sort_keys=False), encoding="utf-8")
@@ -273,6 +283,8 @@ def main() -> None:
     )
     print(f"- {OUTPUT_DIR / 'quality_gate_report.md'}")
     print(f"- {OUTPUT_DIR / 'pr_comment.md'}")
+    print(f"- {OUTPUT_DIR / 'agent_run_trace.md'}")
+    print(f"- {OUTPUT_DIR / 'agent_run_trace.json'}")
     print(f"- {OUTPUT_DIR / 'eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'ai_pr_review_eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'regression_pack.yaml'}")

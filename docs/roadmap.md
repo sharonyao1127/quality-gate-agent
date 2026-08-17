@@ -31,6 +31,7 @@ The roadmap is intentionally narrow. Quality Gate Agent is the hero project, so 
 - [x] Change Context Pack for PRD/business requirement inputs
 - [x] Business risk analyzer for requirements, callback gaps, reconciliation, rollout, and ownership
 - [x] Agent tool interface with Pydantic schemas and dispatcher
+- [x] Agent run trace with step spans, durations, and workflow status
 - [x] GitHub Actions workflow for tests and report artifacts
 
 ## v0.4 Evidence Loop

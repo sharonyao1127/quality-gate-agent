@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from src.agent_observability import AgentRunTrace, AgentRunTracer
 from src.gate_analyzer import GateAnalysisResult, analyze_change
 from src.gate_decision import GateDecision, decide_gate
 from src.llm_risk_classifier import LLMRiskClassifier
@@ -18,6 +19,14 @@ class AgentWorkflowResult:
     pr_comment: str
     regression_pack: Dict[str, Any]
     audit_steps: List[str]
+    run_trace: AgentRunTrace
+
+
+class AgentWorkflowError(RuntimeError):
+    def __init__(self, message: str, run_trace: AgentRunTrace, original_error: Exception):
+        super().__init__(message)
+        self.run_trace = run_trace
+        self.original_error = original_error
 
 
 def run_agent_workflow(
@@ -28,28 +37,49 @@ def run_agent_workflow(
     llm_classifier: Optional[LLMRiskClassifier] = None,
     strict: bool = False,
 ) -> AgentWorkflowResult:
+    tracer = AgentRunTracer(input_type=input_type, classifier_mode=classifier_mode)
     audit_steps = [
         "load_change_context",
         f"classify_risk:{classifier_mode}",
     ]
-    analysis = analyze_change(
-        change_text,
-        rules,
-        input_type=input_type,
-        llm_classifier=llm_classifier,
-        classifier_mode=classifier_mode,
-    )
+    try:
+        with tracer.span(
+            "classify_risk",
+            classifier_mode=classifier_mode,
+            input_type=input_type,
+            rules_count=len(rules),
+        ) as span:
+            analysis = analyze_change(
+                change_text,
+                rules,
+                input_type=input_type,
+                llm_classifier=llm_classifier,
+                classifier_mode=classifier_mode,
+            )
+            span.metadata["matched_rules"] = len(analysis.matches)
+            span.metadata["overall_risk_level"] = analysis.overall_risk_level
 
-    validate_gate_analysis_result(analysis)
-    audit_steps.append("validate_schema")
+        with tracer.span("validate_schema", matches=len(analysis.matches)):
+            validate_gate_analysis_result(analysis)
+        audit_steps.append("validate_schema")
 
-    decision = decide_gate(analysis, strict=strict)
-    audit_steps.append(f"decide_gate:{decision.action}")
+        with tracer.span("decide_gate", strict=strict) as span:
+            decision = decide_gate(analysis, strict=strict)
+            span.metadata["action"] = decision.action
+            span.metadata["review_required"] = decision.review_required
+            span.metadata["merge_blocked"] = decision.merge_blocked
+        audit_steps.append(f"decide_gate:{decision.action}")
 
-    report = generate_gate_report(analysis)
-    pr_comment = generate_pr_comment(analysis)
-    regression_pack = generate_regression_pack(analysis)
-    audit_steps.append("generate_outputs")
+        with tracer.span("generate_outputs") as span:
+            report = generate_gate_report(analysis)
+            pr_comment = generate_pr_comment(analysis)
+            regression_pack = generate_regression_pack(analysis)
+            span.metadata["regression_checks"] = len(regression_pack.get("required_checks", []))
+        audit_steps.append("generate_outputs")
+        run_trace = tracer.finalize(status="blocked" if decision.merge_blocked else "ok")
+    except Exception as exc:
+        run_trace = tracer.finalize(status="error")
+        raise AgentWorkflowError("Agent workflow failed; see run_trace for captured spans.", run_trace, exc) from exc
 
     return AgentWorkflowResult(
         analysis=analysis,
@@ -58,4 +88,5 @@ def run_agent_workflow(
         pr_comment=pr_comment,
         regression_pack=regression_pack,
         audit_steps=audit_steps,
+        run_trace=run_trace,
     )
