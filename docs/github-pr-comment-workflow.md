@@ -1,19 +1,25 @@
 # GitHub PR Comment Workflow
 
-This document describes the intended GitHub integration path for Quality Gate Agent.
+This document describes the GitHub integration path for Quality Gate Agent.
 
 ## Current Public Workflow
 
-The repository currently supports local generation of:
+The repository supports local generation of:
 
 - `outputs/quality_gate_report.md`
 - `outputs/pr_comment.md`
 - `outputs/traceability_report.md`
 - `outputs/regression_pack.yaml`
 
-The CI workflow can run tests and generate these reports as artifacts.
+The GitHub Actions workflow can:
 
-## Target PR Workflow
+- run tests
+- run eval cases
+- generate quality gate reports as artifacts
+- analyze pull requests from the same repository
+- create or update the marker PR comment when `GITHUB_TOKEN` permissions are available
+
+## PR Workflow
 
 ```text
 Pull Request Opened
@@ -33,6 +39,12 @@ Post Comment To Pull Request
         |
         v
 Require Human Review For High Risk Or Low Confidence
+        |
+        v
+Reviewer Confirms Or Corrects The Finding
+        |
+        v
+Correction Becomes A Labeled Eval Case
 ```
 
 ## PR Comment Contents
@@ -54,12 +66,12 @@ A production PR comment should include:
 - Posting comments requires GitHub token permissions.
 - High-risk or low-confidence findings can be used as branch protection signals.
 
-## Next Implementation Step
+## Next Evidence Step
 
-Add a GitHub Action that:
+The next step is to preserve reviewer feedback as structured evidence:
 
-1. installs dependencies
-2. runs tests
-3. runs `python -m src.main`
-4. uploads generated reports as artifacts
-5. optionally posts `outputs/pr_comment.md` to the PR
+1. save sanitized PR input
+2. save generated risk decision and comment
+3. record human confirmation or correction
+4. convert the correction into an eval sample
+5. track whether the rule, classifier, or routing logic improved

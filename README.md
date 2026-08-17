@@ -1,5 +1,7 @@
 # Quality Gate Agent
 
+**AI x Quality x Risk Control for complex B2B systems.**
+
 AI-assisted quality gate for risky code, API, OpenAPI, and PRD/business requirement changes.
 
 This project turns change context into explainable risk scores, regression recommendations, traceable evidence, business-risk findings, and PR-ready review comments. It is designed for complex B2B systems where a small change can affect payment reliability, ledger consistency, async callbacks, status flows, reconciliation, rollout safety, or customer-facing behavior.
@@ -7,6 +9,19 @@ This project turns change context into explainable risk scores, regression recom
 This repository also serves as a public reference implementation for **AI Quality / Agent Reliability / Evaluation Engineering** work. It demonstrates how to combine deterministic rules, structured LLM classification, labeled evaluation datasets, and LLM-as-a-Judge scoring into a single auditable quality gate.
 
 Production-grade rule packs, domain adapters, customer workflows, and private evaluation sets are delivered separately in private engagements.
+
+## Portfolio Positioning
+
+Quality Gate Agent is the hero project for my AI engineering portfolio. It explores one practical question:
+
+> Can an AI-assisted system participate in software release decisions while staying explainable, testable, and auditable?
+
+The intended 3-minute read is:
+
+- **Who this is for:** teams shipping payment, API, callback, reconciliation, workflow, or other high-risk B2B changes.
+- **What it does:** turns diffs, API notes, OpenAPI summaries, PRDs, and business requirements into risk decisions, regression scope, and PR comments.
+- **Why it is credible:** uses deterministic rules, structured LLM classification, labeled evals, traceability, schema validation, and CI checks instead of chatbot-only review.
+- **Where it is going:** one closed-loop product path from real/sanitized PR -> agent analysis -> human correction -> eval dataset -> measured improvement.
 
 ## What It Solves
 
@@ -61,7 +76,7 @@ Quality Gate Agent provides a lightweight workflow:
 ## Demo Flow
 
 ```text
-Git Diff / API Change / OpenAPI Summary / PRD
+Git Diff / API Change / OpenAPI Summary / PRD / PR
         |
         v
 Change Loader + Context Pack
@@ -77,6 +92,8 @@ Gate Analyzer + Risk Rules + Business Risk Analyzer
         +--> Quality Gate Report
         +--> PR Comment
         +--> Eval Summary
+        +--> Human Review Feedback
+        +--> Labeled Eval Case
 ```
 
 For a guided walkthrough, see [Demo Script](docs/demo-script.md).
@@ -288,26 +305,37 @@ Public metrics and deterministic-output expectations are tracked in [Project Met
 
 The repository also includes a GitHub Actions workflow that runs tests, generates quality gate outputs, and uploads generated reports as artifacts.
 
+Current reproducible public baseline:
+
+- Gate eval cases: 3 / 3 passing.
+- AI PR review eval cases: 1 / 1 passing, including an example that catches missing idempotency, callback, and balance-consistency risks.
+- Classifier dataset: 8 labeled public samples.
+- Offline keyword baseline: 62.50% overall-level accuracy and 64.10% macro F1 on the current public dataset.
+- Hybrid and LLM modes fall back to the keyword baseline when no `OPENAI_API_KEY` is configured.
+
 ## Case Study
 
 See [Payment Callback Risk Review](docs/case-study-payment-risk.md) for a sanitized example of how the gate supports payment release risk review.
 
+The project is intentionally being developed as an evidence-driven engineering experiment rather than a feature bucket. See [Evidence and Case Study Plan](docs/evidence-and-case-study-plan.md).
+
 ## Roadmap
 
-Recent work added the AI-native layer:
+Recent work added the product loop:
 
 - [x] LLM-based risk classification with structured output.
 - [x] Hybrid classifier combining keyword rules and LLM.
 - [x] Classifier evaluation framework with precision/recall/F1.
 - [x] LLM-as-a-Judge for report quality scoring.
 - [x] GitHub PR comment workflow.
+- [x] Business-risk review for PRD and requirement changes.
 
-Near-term work focuses on production readiness:
+Near-term work focuses on evidence, not feature sprawl:
 
-- Human review gate workflow for ambiguous decisions.
-- Large PR chunking and risk aggregation.
-- Private evaluation dataset import and false-positive tuning.
-- Cost/latency budget and model routing.
+- Expand the labeled risk dataset from 8 to 50 sanitized cases.
+- Add 20 sanitized PR-style case studies with agent output, human correction, and eval follow-up.
+- Track false positives, missed risks, review corrections, cost, and latency.
+- Tighten error analysis for payment callback, idempotency, reconciliation, status, and API-contract changes.
 
 See [Roadmap](docs/roadmap.md).
 
@@ -315,6 +343,8 @@ See [Roadmap](docs/roadmap.md).
 
 - [Architecture](docs/architecture.md)
 - [Demo Script](docs/demo-script.md)
+- [Evidence and Case Study Plan](docs/evidence-and-case-study-plan.md)
+- [Case Study Template](docs/case-study-template.md)
 - [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
 - [Agent Tool Interface](docs/agent-tool-interface.md)
 - [Open Source Boundary](docs/open-source-boundary.md)
