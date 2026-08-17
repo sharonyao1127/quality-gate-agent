@@ -4,11 +4,43 @@ This document captures public, reproducible signals for the reference implementa
 
 ## Current Public Test Signals
 
+- Gate eval cases pass 3 / 3.
+- AI PR review eval cases pass 1 / 1. The included case intentionally catches an AI-generated review that missed idempotency, async callback, and balance-consistency risks.
+- The public classifier dataset contains 8 labeled samples.
 - Unit and workflow tests cover risk scoring, rule matching, negative keyword handling, traceability, schema validation, regression pack generation, web app behavior, and eval cases.
 - Schema validation checks both output shape and semantic constraints, including risk level consistency, score ranges, and dimension keys.
 - Idempotency coverage verifies that stable business output is deterministic for repeated analysis of the same input.
 - Confidence scoring flags low-certainty findings for human review using explainable rule-evidence heuristics.
 - Keyword location traceability links matched evidence back to input line numbers.
+
+## Current Public Classifier Baseline
+
+Run:
+
+```bash
+python3 -m src.eval_framework
+```
+
+Current offline baseline:
+
+| Classifier | Accuracy | Macro F1 | Samples |
+|---|---:|---:|---:|
+| keyword | 62.50% | 64.10% | 8 |
+| hybrid | 62.50% | 64.10% | 8 |
+| llm | 62.50% | 64.10% | 8 |
+
+When `OPENAI_API_KEY` is not configured, `hybrid` and `llm` modes use the deterministic fallback path. That means the public offline comparison intentionally matches the keyword baseline. A model-enabled run should be reported separately with model name, token usage, latency, and date.
+
+## Evidence Targets
+
+By 2026-12-31, the target public evidence set is:
+
+- 50 labeled risk samples.
+- 20 sanitized PR-style case studies.
+- Per-rule precision, recall, and F1 for keyword, hybrid, and LLM modes.
+- Error analysis for false positives and missed risks.
+- Human review correction tracking.
+- Cost and P95 latency for model-assisted paths.
 
 ## Deterministic Output Contract
 
