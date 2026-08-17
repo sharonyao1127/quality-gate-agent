@@ -54,6 +54,7 @@ Quality Gate Agent provides a lightweight workflow:
 - **Classifier evaluation framework**: labeled dataset, per-rule precision/recall/F1, and macro-F1 comparison across keyword / hybrid / LLM modes.
 - **LLM-as-a-Judge**: scores the helpfulness, actionability, and accuracy of generated reports using a separate LLM judge.
 - **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
+- **Agent tool interface**: framework-agnostic Pydantic schemas and dispatcher for tool-based agent integration.
 - **Gate decision layer**: maps risk and confidence into `pass`, `targeted_regression`, `human_review_required`, or `fail`.
 - Graceful offline fallback: when no API key is configured, the system runs the keyword classifier and uses a deterministic mock judge for tests and demos.
 
@@ -199,6 +200,22 @@ Run with evaluation and LLM-as-a-Judge:
 python3 -m src.main --eval
 ```
 
+Use the agent tool interface from Python:
+
+```python
+from src.agent_tools import run_agent_tool
+
+result = run_agent_tool(
+    "analyze_change",
+    {
+        "change_text": "Provider callback timeout may update transaction status.",
+        "input_type": "api_change",
+        "business_domain": "payment",
+    },
+)
+print(result["decision"]["action"])
+```
+
 Analyze a PRD or business requirement:
 
 ```bash
@@ -299,6 +316,7 @@ See [Roadmap](docs/roadmap.md).
 - [Architecture](docs/architecture.md)
 - [Demo Script](docs/demo-script.md)
 - [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
+- [Agent Tool Interface](docs/agent-tool-interface.md)
 - [Open Source Boundary](docs/open-source-boundary.md)
 
 ## Why This Project Exists
