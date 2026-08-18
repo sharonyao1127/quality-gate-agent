@@ -5,6 +5,7 @@ import yaml
 
 from src.change_loader import load_change_text
 from src.agent_workflow import run_agent_workflow
+from src.agent_observability import generate_agent_run_report
 from src.business_risk_analyzer import (
     analyze_business_risk,
     business_findings_to_change_text,
@@ -24,6 +25,8 @@ from src.llm_risk_classifier import LLMRiskClassifier
 from src.llm_judge import LLMJudge, MockLLMJudge
 from src.eval_framework import (
     compare_classifiers,
+    evaluate_gate_decisions,
+    generate_decision_eval_report,
     generate_eval_report,
     load_eval_dataset,
 )
@@ -157,6 +160,7 @@ def main() -> None:
         "knowledge_retrieval": knowledge_result.to_dict() if knowledge_result else None,
         "agent_workflow": {
             "audit_steps": workflow.audit_steps,
+            "run_trace": workflow.run_trace.to_dict(),
             "decision": {
                 "action": workflow.decision.action,
                 "review_required": workflow.decision.review_required,
@@ -190,6 +194,14 @@ def main() -> None:
 
     (OUTPUT_DIR / "quality_gate_report.md").write_text(report, encoding="utf-8")
     (OUTPUT_DIR / "pr_comment.md").write_text(pr_comment, encoding="utf-8")
+    (OUTPUT_DIR / "agent_run_trace.md").write_text(
+        generate_agent_run_report(workflow.run_trace),
+        encoding="utf-8",
+    )
+    (OUTPUT_DIR / "agent_run_trace.json").write_text(
+        json.dumps(workflow.run_trace.to_dict(), indent=2),
+        encoding="utf-8",
+    )
     (OUTPUT_DIR / "eval_summary.md").write_text(eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "ai_pr_review_eval_summary.md").write_text(ai_eval_summary, encoding="utf-8")
     (OUTPUT_DIR / "regression_pack.yaml").write_text(yaml.safe_dump(regression_pack, sort_keys=False), encoding="utf-8")
@@ -228,6 +240,44 @@ def main() -> None:
         (OUTPUT_DIR / "classifier_eval_report.md").write_text(eval_report, encoding="utf-8")
         print(f"- {OUTPUT_DIR / 'classifier_eval_report.md'}")
 
+        decision_metrics = evaluate_gate_decisions(
+            eval_dataset,
+            rules,
+            classifier_mode=args.classifier,
+            llm_classifier=llm_classifier,
+            strict=args.gate_mode == "strict",
+        )
+        decision_eval_report = generate_decision_eval_report(decision_metrics)
+        (OUTPUT_DIR / "decision_eval_report.md").write_text(decision_eval_report, encoding="utf-8")
+        (OUTPUT_DIR / "decision_eval_result.json").write_text(
+            json.dumps(
+                {
+                    "classifier_mode": decision_metrics.classifier_mode,
+                    "gate_mode": decision_metrics.gate_mode,
+                    "decision_accuracy": decision_metrics.decision_accuracy,
+                    "review_routing_accuracy": decision_metrics.review_routing_accuracy,
+                    "high_risk_recall": decision_metrics.high_risk_recall,
+                    "samples_evaluated": decision_metrics.samples_evaluated,
+                    "failures": [
+                        {
+                            "sample_name": failure.sample_name,
+                            "expected_action": failure.expected_action,
+                            "actual_action": failure.actual_action,
+                            "expected_review_required": failure.expected_review_required,
+                            "actual_review_required": failure.actual_review_required,
+                            "expected_overall_level": failure.expected_overall_level,
+                            "actual_overall_level": failure.actual_overall_level,
+                        }
+                        for failure in decision_metrics.failures
+                    ],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"- {OUTPUT_DIR / 'decision_eval_report.md'}")
+        print(f"- {OUTPUT_DIR / 'decision_eval_result.json'}")
+
         judge = LLMJudge() if LLMJudge().is_available() else MockLLMJudge()
         judge_score, judge_usage = judge.judge_report(workflow_change_text, report)
         judge_result = {
@@ -252,6 +302,8 @@ def main() -> None:
     )
     print(f"- {OUTPUT_DIR / 'quality_gate_report.md'}")
     print(f"- {OUTPUT_DIR / 'pr_comment.md'}")
+    print(f"- {OUTPUT_DIR / 'agent_run_trace.md'}")
+    print(f"- {OUTPUT_DIR / 'agent_run_trace.json'}")
     print(f"- {OUTPUT_DIR / 'eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'ai_pr_review_eval_summary.md'}")
     print(f"- {OUTPUT_DIR / 'regression_pack.yaml'}")
