@@ -12,6 +12,12 @@ Week 2 additions:
 - Checkpointer support (MemorySaver / SqliteSaver) for durable state.
 - FailureInjector for testing retry and recovery behaviour.
 - run_langgraph_workflow_resumable for checkpoint-based resume.
+
+Week 3 additions:
+- HITL interrupt: high-risk/low-confidence decisions pause for human review.
+- TracerCallbackHandler: adapts AgentRunTracer to LangGraph's callback system.
+- run_langgraph_workflow_with_hitl: entry point with human-in-the-loop support.
+- resume_with_human_decision: resume after human approval/override.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
+from langgraph.types import Command, interrupt
 
 from src.agent_observability import AgentRunTrace, AgentRunTracer
 from src.agent_workflow import AgentWorkflowResult
@@ -70,6 +77,10 @@ class QualityGateState(TypedDict, total=False):
 
     # --- retry metadata ---
     retry_counts: Dict[str, int]
+
+    # --- HITL ---
+    human_decision: Optional[str]
+    interrupted: bool
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +231,74 @@ class FailureInjector:
 
 
 # ---------------------------------------------------------------------------
+# Tracer callback handler (Week 3: observability adapter)
+# ---------------------------------------------------------------------------
+
+
+class TracerCallbackHandler:
+    """Adapt AgentRunTracer to LangGraph's callback system.
+
+    LangGraph fires callbacks at each node transition.  This handler
+    translates those callbacks into tracer spans, providing automatic
+    observability without manual span code in every node.
+
+    Usage::
+
+        handler = TracerCallbackHandler(tracer)
+        graph.invoke(state, config={"callbacks": [handler]})
+    """
+
+    def __init__(self, tracer: AgentRunTracer) -> None:
+        self._tracer = tracer
+        self._start_times: Dict[str, float] = {}
+
+    def on_chain_start(self, serialized: Dict[str, Any], inputs: Any, **kwargs: Any) -> None:
+        name = serialized.get("name", kwargs.get("name", "unknown"))
+        if name in ("QualityGateState", "LangGraph", "__start__"):
+            return
+        self._start_times[name] = time.perf_counter()
+
+    def on_chain_end(self, outputs: Any, **kwargs: Any) -> None:
+        from src.agent_observability import AgentRunSpan
+
+        serialized = kwargs.get("serialized", {})
+        name = serialized.get("name", "unknown")
+        if name in ("QualityGateState", "LangGraph", "__start__"):
+            return
+        start = self._start_times.pop(name, None)
+        if start is not None:
+            duration_ms = (time.perf_counter() - start) * 1000
+            self._tracer.trace.spans.append(
+                AgentRunSpan(
+                    name=f"callback:{name}",
+                    status="ok",
+                    duration_ms=duration_ms,
+                    metadata={"source": "langgraph_callback"},
+                )
+            )
+
+    def on_chain_error(self, error: BaseException, **kwargs: Any) -> None:
+        from src.agent_observability import AgentRunSpan
+
+        serialized = kwargs.get("serialized", {})
+        name = serialized.get("name", "unknown")
+        if name in ("QualityGateState", "LangGraph", "__start__"):
+            return
+        start = self._start_times.pop(name, None)
+        if start is not None:
+            duration_ms = (time.perf_counter() - start) * 1000
+            self._tracer.trace.spans.append(
+                AgentRunSpan(
+                    name=f"callback:{name}",
+                    status="error",
+                    duration_ms=duration_ms,
+                    metadata={"source": "langgraph_callback"},
+                    error=f"{error.__class__.__name__}: {error}",
+                )
+            )
+
+
+# ---------------------------------------------------------------------------
 # Graph builder
 # ---------------------------------------------------------------------------
 
@@ -230,6 +309,7 @@ def _build_graph(
     injector: Optional[FailureInjector] = None,
     checkpointer: Any = None,
     timeout_seconds: Optional[float] = None,
+    use_hitl: bool = False,
 ) -> Any:
     """Construct and compile the Quality Gate StateGraph.
 
@@ -247,6 +327,9 @@ def _build_graph(
     timeout_seconds : float, optional
         Per-node wall-clock timeout.  Nodes that exceed this raise
         TimeoutError, which is retryable if retry_config is set.
+    use_hitl : bool
+        If True, add a human_review interrupt node after decide_gate.
+        Requires checkpointer to be set for resume capability.
     """
 
     def classify_risk_node(state: QualityGateState) -> Dict[str, Any]:
@@ -312,13 +395,56 @@ def _build_graph(
     def route_after_decision(state: QualityGateState) -> str:
         """Conditional edge: route to human_review or generate_outputs.
 
-        For Week 1-2 this always routes to generate_outputs.  Week 3
-        will add a real interrupt node for HITL.
+        When HITL is enabled and the decision requires review, route
+        to the human_review interrupt node.  Otherwise go directly to
+        generate_outputs.
         """
         decision = state.get("decision")
-        if decision and decision.review_required:
-            return "generate_outputs"
+        if use_hitl and decision and decision.review_required:
+            return "human_review"
         return "generate_outputs"
+
+    def human_review_node(state: QualityGateState) -> Dict[str, Any]:
+        """HITL interrupt node: pause execution and wait for human decision.
+
+        When this node runs, LangGraph's interrupt() pauses the graph.
+        State is saved to the checkpointer.  The human reviewer can
+        approve, override, or request more evidence.  When resumed,
+        the human's decision is passed back into this function.
+        """
+        decision = state.get("decision")
+        analysis = state.get("analysis")
+        interrupt_payload = {
+            "risk_level": analysis.overall_risk_level if analysis else "unknown",
+            "risk_score": analysis.overall_risk_score if analysis else 0,
+            "gate_action": decision.action if decision else "unknown",
+            "review_required": decision.review_required if decision else True,
+            "reasons": decision.reasons if decision else [],
+            "question": "Approve, override, or request more evidence?",
+        }
+        human_decision = interrupt(interrupt_payload)
+
+        audit_steps = list(state.get("audit_steps", []))
+        audit_steps.append(f"human_review:{human_decision}")
+
+        # If human overrides to "approve", clear the review requirement
+        # so generate_outputs can proceed normally.
+        if human_decision == "approve":
+            if decision:
+                decision = GateDecision(
+                    action=decision.action,
+                    review_required=False,
+                    merge_blocked=False,
+                    reasons=decision.reasons + ["Human approved."],
+                    required_followups=decision.required_followups,
+                )
+
+        return {
+            "human_decision": human_decision,
+            "decision": decision,
+            "audit_steps": audit_steps,
+            "run_trace": tracer.trace,
+        }
 
     def generate_outputs_node(state: QualityGateState) -> Dict[str, Any]:
         analysis = state["analysis"]
@@ -383,18 +509,24 @@ def _build_graph(
     graph.add_node("validate_schema", validate_schema_node)
     graph.add_node("decide_gate", decide_gate_node)
     graph.add_node("generate_outputs", generate_fn)
+    if use_hitl:
+        graph.add_node("human_review", human_review_node)
 
     graph.set_entry_point("classify_risk")
     graph.add_edge("classify_risk", "validate_schema")
     graph.add_edge("validate_schema", "decide_gate")
-    graph.add_conditional_edges(
-        "decide_gate",
-        route_after_decision,
-        {
-            "generate_outputs": "generate_outputs",
-            # "human_review": "human_review",  # Week 3
-        },
-    )
+    if use_hitl:
+        graph.add_conditional_edges(
+            "decide_gate",
+            route_after_decision,
+            {
+                "generate_outputs": "generate_outputs",
+                "human_review": "human_review",
+            },
+        )
+        graph.add_edge("human_review", "generate_outputs")
+    else:
+        graph.add_edge("decide_gate", "generate_outputs")
     graph.add_edge("generate_outputs", END)
 
     compile_kwargs: Dict[str, Any] = {}
@@ -467,6 +599,200 @@ def run_langgraph_workflow(
         regression_pack=final_state["regression_pack"],
         audit_steps=final_state["audit_steps"],
         run_trace=run_trace,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Week 3: HITL (Human-in-the-loop) public API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class HITLResult:
+    """Result of a HITL workflow run.
+
+    Either ``interrupted=True`` (waiting for human review) or
+    ``completed=True`` (workflow finished with a result).
+    """
+
+    interrupted: bool = False
+    completed: bool = False
+    review_request: Optional[Dict[str, Any]] = None
+    workflow_result: Optional[AgentWorkflowResult] = None
+    thread_id: str = ""
+
+
+def run_langgraph_workflow_with_hitl(
+    change_text: str,
+    rules: List[Dict[str, Any]],
+    thread_id: str,
+    input_type: str = "generic",
+    classifier_mode: str = "keyword",
+    llm_classifier: Optional[LLMRiskClassifier] = None,
+    strict: bool = False,
+    retry_config: Optional[RetryConfig] = None,
+    checkpointer: Any = None,
+    timeout_seconds: Optional[float] = None,
+) -> HITLResult:
+    """Run the Quality Gate workflow with human-in-the-loop interrupt.
+
+    If the gate decision requires human review, the workflow pauses.
+    State is saved to the checkpointer.  The returned ``HITLResult``
+    will have ``interrupted=True`` and a ``review_request`` dict
+    describing what the human needs to decide.
+
+    Call :func:`resume_with_human_decision` with the same thread_id
+    to continue after the human makes a decision.
+    """
+    from langgraph.checkpoint.memory import MemorySaver
+
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+
+    tracer = AgentRunTracer(
+        input_type=input_type,
+        classifier_mode=classifier_mode,
+        run_id=thread_id,
+    )
+    compiled_graph = _build_graph(
+        tracer,
+        retry_config=retry_config,
+        checkpointer=checkpointer,
+        timeout_seconds=timeout_seconds,
+        use_hitl=True,
+    )
+
+    config = {"configurable": {"thread_id": thread_id}}
+
+    initial_state: Dict[str, Any] = {
+        "change_text": change_text,
+        "rules": rules,
+        "input_type": input_type,
+        "classifier_mode": classifier_mode,
+        "strict": strict,
+        "llm_classifier": llm_classifier,
+        "audit_steps": [],
+        "retry_counts": {},
+    }
+
+    try:
+        final_state = compiled_graph.invoke(initial_state, config=config)
+    except Exception as exc:
+        run_trace = tracer.finalize(status="error")
+        from src.agent_workflow import AgentWorkflowError
+
+        raise AgentWorkflowError(
+            "LangGraph HITL workflow failed; see run_trace for captured spans.",
+            run_trace,
+            exc,
+        ) from exc
+
+    # Check if the graph was interrupted (waiting for human review)
+    if "__interrupt__" in final_state:
+        interrupt_data = final_state["__interrupt__"]
+        review_request = interrupt_data[0].value if interrupt_data else {}
+        return HITLResult(
+            interrupted=True,
+            review_request=review_request,
+            thread_id=thread_id,
+        )
+
+    # Workflow completed without interruption
+    run_trace = final_state.get("run_trace") or tracer.finalize()
+    result = AgentWorkflowResult(
+        analysis=final_state["analysis"],
+        decision=final_state["decision"],
+        report=final_state["report"],
+        pr_comment=final_state["pr_comment"],
+        regression_pack=final_state["regression_pack"],
+        audit_steps=final_state["audit_steps"],
+        run_trace=run_trace,
+    )
+    return HITLResult(
+        completed=True,
+        workflow_result=result,
+        thread_id=thread_id,
+    )
+
+
+def resume_with_human_decision(
+    thread_id: str,
+    human_decision: str,
+    rules: List[Dict[str, Any]],
+    input_type: str = "generic",
+    classifier_mode: str = "keyword",
+    llm_classifier: Optional[LLMRiskClassifier] = None,
+    strict: bool = False,
+    retry_config: Optional[RetryConfig] = None,
+    checkpointer: Any = None,
+    timeout_seconds: Optional[float] = None,
+) -> HITLResult:
+    """Resume a HITL workflow after the human makes a decision.
+
+    Parameters
+    ----------
+    thread_id : str
+        Must match the thread_id from the interrupted run.
+    human_decision : str
+        One of: "approve", "override", "request_more_evidence".
+    """
+    from langgraph.checkpoint.memory import MemorySaver
+
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+
+    tracer = AgentRunTracer(
+        input_type=input_type,
+        classifier_mode=classifier_mode,
+        run_id=thread_id,
+    )
+    compiled_graph = _build_graph(
+        tracer,
+        retry_config=retry_config,
+        checkpointer=checkpointer,
+        timeout_seconds=timeout_seconds,
+        use_hitl=True,
+    )
+
+    config = {"configurable": {"thread_id": thread_id}}
+
+    try:
+        final_state = compiled_graph.invoke(
+            Command(resume=human_decision), config=config
+        )
+    except Exception as exc:
+        run_trace = tracer.finalize(status="error")
+        from src.agent_workflow import AgentWorkflowError
+
+        raise AgentWorkflowError(
+            "LangGraph HITL resume failed; see run_trace for captured spans.",
+            run_trace,
+            exc,
+        ) from exc
+
+    if "__interrupt__" in final_state:
+        interrupt_data = final_state["__interrupt__"]
+        review_request = interrupt_data[0].value if interrupt_data else {}
+        return HITLResult(
+            interrupted=True,
+            review_request=review_request,
+            thread_id=thread_id,
+        )
+
+    run_trace = final_state.get("run_trace") or tracer.finalize()
+    result = AgentWorkflowResult(
+        analysis=final_state["analysis"],
+        decision=final_state["decision"],
+        report=final_state["report"],
+        pr_comment=final_state["pr_comment"],
+        regression_pack=final_state["regression_pack"],
+        audit_steps=final_state["audit_steps"],
+        run_trace=run_trace,
+    )
+    return HITLResult(
+        completed=True,
+        workflow_result=result,
+        thread_id=thread_id,
     )
 
 
