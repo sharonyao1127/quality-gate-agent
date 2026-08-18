@@ -91,6 +91,12 @@ def main() -> None:
         action="store_true",
         help="Run classifier evaluation and LLM-as-a-Judge on generated reports.",
     )
+    parser.add_argument(
+        "--runtime",
+        choices=["native", "langgraph"],
+        default="native",
+        help="Agent runtime: native (default) or langgraph (StateGraph-based).",
+    )
     args = parser.parse_args()
 
     github_pull_request = None
@@ -133,14 +139,26 @@ def main() -> None:
 
     rules = load_gate_rules(str(RULES_PATH))
     llm_classifier = LLMRiskClassifier()
-    workflow = run_agent_workflow(
-        workflow_change_text,
-        rules,
-        input_type=context_pack.source_type,
-        classifier_mode=args.classifier,
-        llm_classifier=llm_classifier,
-        strict=args.gate_mode == "strict",
-    )
+    if args.runtime == "langgraph":
+        from src.langgraph_workflow import run_langgraph_workflow
+
+        workflow = run_langgraph_workflow(
+            workflow_change_text,
+            rules,
+            input_type=context_pack.source_type,
+            classifier_mode=args.classifier,
+            llm_classifier=llm_classifier,
+            strict=args.gate_mode == "strict",
+        )
+    else:
+        workflow = run_agent_workflow(
+            workflow_change_text,
+            rules,
+            input_type=context_pack.source_type,
+            classifier_mode=args.classifier,
+            llm_classifier=llm_classifier,
+            strict=args.gate_mode == "strict",
+        )
     result = workflow.analysis
 
     OUTPUT_DIR.mkdir(exist_ok=True)
