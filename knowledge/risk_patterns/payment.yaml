@@ -1,0 +1,38 @@
+patterns:
+  - id: payment_async_callback_idempotency
+    domain: payment
+    name: Payment callback idempotency and final-state overwrite
+    signals:
+      - callback
+      - provider
+      - timeout
+      - retry
+      - duplicate
+      - delayed
+    risks:
+      - Duplicated callbacks can update the same transaction multiple times.
+      - Delayed callbacks can overwrite a terminal transaction state.
+      - Retry behavior can create inconsistent ledger and user-facing status.
+    recommended_checks:
+      - Verify duplicated callbacks are idempotent.
+      - Verify delayed success does not overwrite failed or refunded terminal states.
+      - Verify callback replay uses transaction ID and provider request ID safely.
+
+  - id: payment_reconciliation_ledger_gap
+    domain: payment
+    name: Payment reconciliation and ledger consistency gap
+    signals:
+      - reconciliation
+      - ledger
+      - balance
+      - settlement
+      - provider_response
+      - mismatch
+    risks:
+      - Provider response can diverge from internal transaction records.
+      - Ledger balance can be correct locally but inconsistent with settlement records.
+      - Long-pending transactions can hide financial risk.
+    recommended_checks:
+      - Compare provider records, transaction records, and ledger entries.
+      - Alert on long-pending transactions and provider/internal mismatches.
+      - Validate reconciliation reports before rollout expansion.

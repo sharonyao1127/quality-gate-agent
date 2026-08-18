@@ -30,6 +30,7 @@ The roadmap is intentionally narrow. Quality Gate Agent is the hero project, so 
 - [x] Human review gate for ambiguous risk decisions
 - [x] Change Context Pack for PRD/business requirement inputs
 - [x] Business risk analyzer for requirements, callback gaps, reconciliation, rollout, and ownership
+- [x] Knowledge Store Lite for reusable payment, ads, and logistics risk patterns
 - [x] Agent tool interface with Pydantic schemas and dispatcher
 - [x] Agent run trace with step spans, durations, and workflow status
 - [x] GitHub Actions workflow for tests and report artifacts
@@ -51,7 +52,6 @@ The roadmap is intentionally narrow. Quality Gate Agent is the hero project, so 
 These are useful, but lower priority than evidence quality:
 
 - [ ] Automated OpenAPI diff parser
-- [ ] Local knowledge store for reusable risk patterns
 - [ ] Vector/RAG retrieval for private historical risk patterns
 - [ ] LLM-based change summary
 - [ ] MCP/tool interface for agent workflow integration

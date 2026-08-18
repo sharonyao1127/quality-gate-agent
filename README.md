@@ -72,6 +72,7 @@ Quality Gate Agent provides a lightweight workflow:
 - **Agent workflow orchestration**: explicit analyze -> validate -> decide -> generate pipeline with audit steps.
 - **Agent tool interface**: framework-agnostic Pydantic schemas and dispatcher for tool-based agent integration.
 - **Gate decision layer**: maps risk and confidence into `pass`, `targeted_regression`, `human_review_required`, or `fail`.
+- **Knowledge Store Lite**: retrieves reusable public risk patterns for payment, ads, and logistics changes.
 - **Agent run observability**: captures run ID, step spans, durations, status, and decision metadata for audit and debugging.
 - Graceful offline fallback: when no API key is configured, the system runs the keyword classifier and uses a deterministic mock judge for tests and demos.
 
@@ -88,6 +89,7 @@ Gate Analyzer + Risk Rules + Business Risk Analyzer
         |
         +--> Risk Score
         +--> Business Risk Review
+        +--> Retrieved Risk Knowledge
         +--> Impacted Areas
         +--> Regression Scope
         +--> Traceability Report
@@ -282,6 +284,7 @@ Then open `http://127.0.0.1:8000`.
 ```text
 examples/                 Sanitized input examples
 examples/prd/             Sanitized PRD/business requirement examples
+knowledge/risk_patterns/  Public reusable risk knowledge patterns
 risk_rules/               Public demo rule set
 eval_cases/               Expected risk behavior cases
 src/                      Analyzer, scoring, reports, traceability, validation
@@ -353,6 +356,7 @@ See [Roadmap](docs/roadmap.md).
 - [Evidence and Case Study Plan](docs/evidence-and-case-study-plan.md)
 - [Case Study Template](docs/case-study-template.md)
 - [GitHub PR Comment Workflow](docs/github-pr-comment-workflow.md)
+- [Knowledge Store Lite](docs/knowledge-store.md)
 - [Agent Tool Interface](docs/agent-tool-interface.md)
 - [Open Source Boundary](docs/open-source-boundary.md)
 

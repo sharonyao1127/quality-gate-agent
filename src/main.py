@@ -14,6 +14,11 @@ from src.business_risk_analyzer import (
 from src.context_pack import build_context_pack
 from src.gate_analyzer import load_gate_rules
 from src.github_client import GitHubClient, GitHubPullRequest
+from src.knowledge_store import (
+    generate_knowledge_context,
+    generate_knowledge_report,
+    retrieve_risk_patterns,
+)
 from src.eval_runner import run_eval_cases, generate_eval_summary
 from src.eval_runner import run_ai_pr_review_eval_cases, generate_ai_pr_review_eval_summary
 from src.llm_risk_classifier import LLMRiskClassifier
@@ -110,13 +115,21 @@ def main() -> None:
         business_domain=args.business_domain,
     )
     business_risk = None
+    knowledge_result = None
     workflow_change_text = change_text
     if context_pack.source_type in {"prd", "business_requirement", "release_note"}:
         business_risk = analyze_business_risk(context_pack)
         business_risk_context = business_findings_to_change_text(business_risk)
+        knowledge_result = retrieve_risk_patterns(
+            context_pack.to_analysis_text(),
+            domain=context_pack.business_domain,
+        )
+        knowledge_context = generate_knowledge_context(knowledge_result)
         workflow_change_text = context_pack.to_analysis_text()
         if business_risk_context:
             workflow_change_text = f"{workflow_change_text}\n\n{business_risk_context}"
+        if knowledge_context:
+            workflow_change_text = f"{workflow_change_text}\n\n{knowledge_context}"
 
     rules = load_gate_rules(str(RULES_PATH))
     llm_classifier = LLMRiskClassifier()
@@ -144,6 +157,7 @@ def main() -> None:
         "llm_used": result.llm_result is not None,
         "context_pack": context_pack.to_dict(),
         "business_risk": business_risk.to_dict() if business_risk else None,
+        "knowledge_retrieval": knowledge_result.to_dict() if knowledge_result else None,
         "agent_workflow": {
             "audit_steps": workflow.audit_steps,
             "run_trace": workflow.run_trace.to_dict(),
@@ -198,6 +212,11 @@ def main() -> None:
     if business_risk:
         (OUTPUT_DIR / "business_risk_report.md").write_text(
             generate_business_risk_report(business_risk),
+            encoding="utf-8",
+        )
+    if knowledge_result:
+        (OUTPUT_DIR / "knowledge_report.md").write_text(
+            generate_knowledge_report(knowledge_result),
             encoding="utf-8",
         )
 
@@ -293,6 +312,8 @@ def main() -> None:
     print(f"- {OUTPUT_DIR / 'gate_result.json'}")
     if business_risk:
         print(f"- {OUTPUT_DIR / 'business_risk_report.md'}")
+    if knowledge_result:
+        print(f"- {OUTPUT_DIR / 'knowledge_report.md'}")
 
     if args.publish_comment and github_pull_request:
         with GitHubClient() as github_client:
