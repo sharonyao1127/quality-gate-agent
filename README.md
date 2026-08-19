@@ -321,6 +321,7 @@ Current reproducible public baseline:
 - Classifier dataset: 8 labeled public samples.
 - Offline keyword baseline: 62.50% overall-level accuracy and 64.10% macro F1 on the current public dataset.
 - Hybrid and LLM modes fall back to the keyword baseline when no `OPENAI_API_KEY` is configured.
+- Closed-loop evidence pipeline: `python3 -m src.runtime_eval` now writes `outputs/evidence_loop_report.md` showing the baseline-vs-post-correction delta driven by reviewer overrides in `eval_dataset/human_corrections/`.
 
 ## Case Study
 
