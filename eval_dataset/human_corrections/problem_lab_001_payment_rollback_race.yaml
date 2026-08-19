@@ -1,0 +1,43 @@
+# First Problem-Lab correction: a real-work inspired missed risk.
+#
+# Sanitized from a payment rollout where a parallel async retry path made
+# the safe "idempotent rollback" pattern actually unsafe in production.
+correction:
+  correction_id: problem_lab_001_payment_rollback_race
+  type: missed_risk
+  problem_lab_source: payment-rollout-2025-03
+  reviewed_at: 2026-08-19
+  new_sample:
+    name: payment_rollback_race_under_p99_latency
+    input: |
+      Provider supports idempotent rollback of duplicated charges within 24h.
+      We added a parallel async handler that re-fires the rollback if the
+      supplier p99 response latency exceeds 1500ms. The handler is wired to
+      emit on the same correlation_id as the original charge request.
+    expected_overall_level: high
+    expected_gate_action: human_review_required
+    expected_review_required: true
+    expected_findings:
+      - rule_id: async_callback_risk
+        risk_level: high
+        impacted_areas:
+          - external provider callback
+          - idempotent rollback window
+          - charge duplication risk
+      - rule_id: idempotency_risk
+        risk_level: high
+        impacted_areas:
+          - balance consistency
+          - rollback safety window
+  original_outcome:
+    overall_level: low
+    gate_action: pass
+    review_required: false
+  note: |
+    Real rollout observation: keyword-only classifier missed this because
+    the dangerous pattern hides behind a 'safe to rollback' framing. The
+    async retry path can re-fire rollback after the 24h window and the
+    correlation_id collides with the original charge. Without LLM-aware
+    classification or a dedicated rule_weight on the retry clause, the
+    gate reports PASS. This correction pushes the case into the eval
+    pipeline so future classifier regressions trip immediately.

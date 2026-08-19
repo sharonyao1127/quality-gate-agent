@@ -21,6 +21,13 @@ from src.agent_workflow import run_agent_workflow
 from src.agent_workflow import AgentWorkflowResult
 from src.eval_framework import EvalSample, load_eval_dataset
 from src.gate_analyzer import load_gate_rules
+from src.human_review import (
+    Correction,
+    apply_label_corrections,
+    collect_new_samples_from_corrections,
+    load_corrections,
+    summarize_corrections,
+)
 from src.langgraph_workflow import run_langgraph_workflow
 from src.llm_risk_classifier import LLMRiskClassifier
 
@@ -29,6 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RULES_PATH = ROOT / "risk_rules" / "quality_gate_rules.yaml"
 DEFAULT_DATASET_PATH = ROOT / "eval_dataset" / "risk_samples.yaml"
 DEFAULT_OUTPUT_PATH = ROOT / "outputs" / "runtime_eval_report.md"
+DEFAULT_EVIDENCE_LOOP_OUTPUT_PATH = ROOT / "outputs" / "evidence_loop_report.md"
 
 
 @dataclass
@@ -88,6 +96,23 @@ class EvalReport:
     consistency: List[ConsistencyResult]
     consistent_samples: int
     total_samples: int
+
+
+@dataclass
+class EvidenceLoopReport:
+    """Comparison of before vs after applying human corrections.
+
+    The same eval pipeline runs twice: first on the original labeled
+    samples, then on the post-correction pipeline (label overrides applied
+    plus any missed_risk additions). The delta is what the closed loop
+    teaches the dataset.
+    """
+
+    baseline: EvalReport
+    post_correction: EvalReport
+    corrections_summary: Dict[str, object]
+    baseline_sample_count: int
+    post_sample_count: int
 
 
 def _run_sample(
@@ -300,11 +325,198 @@ def generate_runtime_eval_report(report: EvalReport) -> str:
     return "\n".join(lines)
 
 
+def run_evidence_loop_eval(
+    dataset_path: Path = DEFAULT_DATASET_PATH,
+    rules_path: Path = DEFAULT_RULES_PATH,
+    classifier_mode: str = "keyword",
+) -> EvidenceLoopReport:
+    """Run baseline and post-correction runtime eval, return deltas.
+
+    Applies label_corrections to baseline samples and appends missed_risk
+    additions before re-running the entire pipeline through both runtimes.
+    """
+    from src.human_review import DEFAULT_CORRECTIONS_DIR as _corrections_dir
+
+    baseline_samples = load_eval_dataset(dataset_path)
+    rules = load_gate_rules(str(rules_path))
+    llm_classifier = LLMRiskClassifier()
+    corrections = load_corrections(_corrections_dir)
+
+    baseline_report = _eval_with_samples(
+        baseline_samples, rules, classifier_mode, llm_classifier
+    )
+
+    if corrections:
+        adjusted = apply_label_corrections(baseline_samples, corrections)
+        adjusted.extend(collect_new_samples_from_corrections(corrections))
+        post_report = _eval_with_samples(
+            adjusted, rules, classifier_mode, llm_classifier
+        )
+    else:
+        post_report = baseline_report
+
+    summary = summarize_corrections(corrections).to_dict()
+    summary["by_id"] = [c.to_dict() for c in corrections]
+
+    return EvidenceLoopReport(
+        baseline=baseline_report,
+        post_correction=post_report,
+        corrections_summary=summary,
+        baseline_sample_count=len(baseline_samples),
+        post_sample_count=len(baseline_samples)
+        + sum(1 for c in corrections if c.type != "label_correction"),
+    )
+
+
+def _eval_with_samples(
+    samples: List[EvalSample],
+    rules: List[Dict[str, object]],
+    classifier_mode: str,
+    llm_classifier: Optional[LLMRiskClassifier],
+) -> EvalReport:
+    """Run both runtimes over an in-memory sample list and package as EvalReport."""
+    native_results: List[RuntimeSampleResult] = []
+    langgraph_results: List[RuntimeSampleResult] = []
+
+    for sample in samples:
+        native_results.append(_run_sample(sample, rules, "native", classifier_mode, llm_classifier))
+        langgraph_results.append(_run_sample(sample, rules, "langgraph", classifier_mode, llm_classifier))
+
+    native_metrics = _compute_metrics("native", native_results)
+    langgraph_metrics = _compute_metrics("langgraph", langgraph_results)
+    consistency = _compare_consistency(native_results, langgraph_results)
+    consistent_count = sum(
+        1 for c in consistency if c.level_consistent and c.action_consistent
+    )
+
+    return EvalReport(
+        native_metrics=native_metrics,
+        langgraph_metrics=langgraph_metrics,
+        consistency=consistency,
+        consistent_samples=consistent_count,
+        total_samples=len(samples),
+    )
+
+
+def generate_evidence_loop_report(report: EvidenceLoopReport) -> str:
+    """Produce a Markdown report contrasting baseline vs post-correction metrics."""
+    summary = report.corrections_summary
+    base_n = report.baseline.native_metrics
+    base_lg = report.baseline.langgraph_metrics
+    post_n = report.post_correction.native_metrics
+    post_lg = report.post_correction.langgraph_metrics
+
+    def pct(value: float) -> str:
+        return f"{value:.1%}"
+
+    lines = [
+        "# Evidence Loop Report: Baseline vs Post-Correction",
+        "",
+        "This report closes the loop between the engine and human review. The",
+        "baseline run uses the original labeled samples; the post-correction run",
+        "applies reviewer overrides and adds new samples drawn from real-work",
+        "patterns (sanitized). The delta is the closed-loop teaching signal.",
+        "",
+        "## Sample Pipeline Sizes",
+        "",
+        f"- Baseline samples: **{report.baseline_sample_count}**",
+        f"- Post-correction samples: **{report.post_sample_count}**",
+        f"- Corrections loaded: **{summary.get('total', 0)}** "
+        f"(label: {summary.get('label_corrections', 0)}, "
+        f"missed_risk: {summary.get('missed_risk_additions', 0)}, "
+        f"false_positive: {summary.get('false_positive_markings', 0)})",
+        "",
+        "## Metrics: Baseline",
+        "",
+        "| Runtime | Risk Level Acc | Decision Acc | Avg Latency | P95 Latency | Avg Spans |",
+        "|---|---:|---:|---:|---:|---:|",
+        f"| Native | {pct(base_n.level_accuracy)} | {pct(base_n.decision_accuracy)} | "
+        f"{base_n.avg_latency_ms:.1f}ms | {base_n.p95_latency_ms:.1f}ms | "
+        f"{base_n.avg_span_count:.1f} |",
+        f"| LangGraph | {pct(base_lg.level_accuracy)} | {pct(base_lg.decision_accuracy)} | "
+        f"{base_lg.avg_latency_ms:.1f}ms | {base_lg.p95_latency_ms:.1f}ms | "
+        f"{base_lg.avg_span_count:.1f} |",
+        "",
+        "## Metrics: Post-Correction",
+        "",
+        "| Runtime | Risk Level Acc | Decision Acc | Avg Latency | P95 Latency | Avg Spans |",
+        "|---|---:|---:|---:|---:|---:|",
+        f"| Native | {pct(post_n.level_accuracy)} | {pct(post_n.decision_accuracy)} | "
+        f"{post_n.avg_latency_ms:.1f}ms | {post_n.p95_latency_ms:.1f}ms | "
+        f"{post_n.avg_span_count:.1f} |",
+        f"| LangGraph | {pct(post_lg.level_accuracy)} | {pct(post_lg.decision_accuracy)} | "
+        f"{post_lg.avg_latency_ms:.1f}ms | {post_lg.p95_latency_ms:.1f}ms | "
+        f"{post_lg.avg_span_count:.1f} |",
+        "",
+        "## Delta",
+        "",
+        "| Runtime | Level Acc Δ | Decision Acc Δ | Sample Δ |",
+        "|---|---:|---:|---:|",
+        f"| Native | "
+        f"{(post_n.level_accuracy - base_n.level_accuracy):+.1%} | "
+        f"{(post_n.decision_accuracy - base_n.decision_accuracy):+.1%} | "
+        f"{(report.post_sample_count - report.baseline_sample_count):+} |",
+        f"| LangGraph | "
+        f"{(post_lg.level_accuracy - base_lg.level_accuracy):+.1%} | "
+        f"{(post_lg.decision_accuracy - base_lg.decision_accuracy):+.1%} | "
+        f"{(report.post_sample_count - report.baseline_sample_count):+} |",
+        "",
+        "## Corrections Applied",
+        "",
+        f"- Affected baseline samples: "
+        f"{', '.join(summary.get('affected_samples', [])) or '(none)'}",
+        f"- New samples added: "
+        f"{', '.join(summary.get('new_sample_names', [])) or '(none)'}",
+        "",
+        "## Correction Detail",
+        "",
+    ]
+
+    by_id = summary.get("by_id", [])
+    if not by_id:
+        lines.append("- (no corrections loaded)")
+    else:
+        lines.append("| Correction ID | Type | Problem Lab | Sample Ref | Sample Added |")
+        lines.append("|---|---|---|---|---|")
+        for entry in by_id:
+            sample_ref = entry.get("sample_ref") or "-"
+            new_sample = (entry.get("new_sample") or {}).get("name") if isinstance(entry.get("new_sample"), dict) else "-"
+            lines.append(
+                f"| {entry.get('correction_id', '-')} | "
+                f"{entry.get('type', '-')} | "
+                f"{entry.get('problem_lab_source', '-') or '-'} | "
+                f"{sample_ref} | "
+                f"{new_sample or '-'} |"
+            )
+
+    lines.extend([
+        "",
+        "## Why This Matter",
+        "",
+        "Without corrections, accuracy deltas were hidden by sample noise.",
+        "With corrections in the loop, every reviewer disagreement becomes a",
+        "measurable teaching signal: more samples, sharper trends, and a",
+        "traceable link from each delta back to a `problem_lab_source`.",
+    ])
+
+    return "\n".join(lines)
+
+
 def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Runtime comparison eval")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
+    parser.add_argument(
+        "--evidence-loop-output",
+        default=str(DEFAULT_EVIDENCE_LOOP_OUTPUT_PATH),
+        help="Path for the closed-loop evidence_loop_report.md.",
+    )
+    parser.add_argument(
+        "--skip-evidence-loop",
+        action="store_true",
+        help="Skip writing the closed-loop report (runtime comparison only).",
+    )
     parser.add_argument("--classifier", choices=["keyword", "hybrid", "llm"], default="keyword")
     args = parser.parse_args()
 
@@ -316,7 +528,17 @@ def main() -> None:
     output_path.write_text(markdown, encoding="utf-8")
 
     print(markdown)
-    print(f"\nReport saved to {output_path}")
+    print(f"\nRuntime eval report saved to {output_path}")
+
+    if not args.skip_evidence_loop:
+        evidence_report = run_evidence_loop_eval(classifier_mode=args.classifier)
+        evidence_markdown = generate_evidence_loop_report(evidence_report)
+        evidence_path = Path(args.evidence_loop_output)
+        evidence_path.parent.mkdir(exist_ok=True)
+        evidence_path.write_text(evidence_markdown, encoding="utf-8")
+        print()
+        print(evidence_markdown)
+        print(f"\nEvidence loop report saved to {evidence_path}")
 
 
 if __name__ == "__main__":
